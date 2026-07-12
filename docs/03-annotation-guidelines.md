@@ -86,13 +86,19 @@ Một phát biểu trong document, cần đọc **cả text lẫn chart** để 
 - ✅ "Đúng hay sai: vốn FDI tăng liên tục suốt 2011–2021?" — text mở đầu chỉ nói chung chung "biến động", phải nhìn chart mới thấy có giảm ở 2012 và 2020.
 - ❌ "Đúng hay sai: bài viết nói GDP tăng gấp 3 lần?" — nếu chỉ cần đọc câu trong text, không cần nhìn chart để xác minh, đây là câu hỏi đọc hiểu văn bản thuần, không thuộc phạm vi dataset này.
 
-**Trường `evidence` bắt buộc với mọi câu `hop_type != single_chart`** (xem schema ở [docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất)) — annotator ghi rõ từng hop lấy từ đâu (câu nào trong text, chart nào, điểm dữ liệu nào). Thiếu evidence = câu hỏi bị trả về sửa ở bước xác minh chéo, không được tính hoàn thành.
+**Trường `evidence` bắt buộc với mọi câu `hop_type != single_chart`** (định dạng chi tiết + lý do ở [docs/02](02-dataset-design.md#định-dạng-evidence--tham-chiếu-bằng-label-không-mô-tả-tự-do)) — không viết mô tả tự do, chỉ trỏ vào dữ liệu **đã có sẵn**:
+
+- Hop từ chart: điền đúng `series` (tên chuỗi/legend như trên chart) + `x` (nhãn trục x như trên chart) — lấy nguyên văn từ `data_table` đã nhập ở Bước 0, không tự diễn giải.
+- Hop từ text: `quote` là đoạn trích nguyên văn ngắn copy trực tiếp từ body_text (không paraphrase).
+
+Thiếu evidence hoặc evidence không khớp `data_table`/`body_text` = câu hỏi bị trả về sửa ở bước xác minh chéo, không được tính hoàn thành.
 
 ## Quy tắc viết đáp án
 
 - **Đáp án số:** giữ nguyên đơn vị và định dạng xuất hiện trên chart (ví dụ `6.2%` chứ không viết lại thành `0.062`), trừ khi câu hỏi yêu cầu đơn vị khác một cách tường minh.
 - **Dung sai khi đánh giá tự động:** áp dụng "relaxed accuracy" như ChartQA gốc — đáp án số được coi là đúng nếu nằm trong 5% giá trị đúng, để chấp nhận sai số nhỏ trong OCR/trích xuất. Annotator vẫn phải ghi đáp án chính xác tuyệt đối, dung sai chỉ áp dụng ở bước đánh giá mô hình (xem [docs/04](04-model-strategy.md)).
 - **Đáp án không phải số:** cần khớp chính xác (exact match) sau khi chuẩn hoá chính tả/khoảng trắng.
+- **`derivation` (bắt buộc có điều kiện):** với mọi câu có `answer_type: numeric` **và** `question_type` là `compositional` hoặc `thị giác + suy luận` có bước tính toán — ghi công thức số học thuần (vd. `"8.4 - 2.5"`, `"(14740 + 1910)/2"`), dùng đúng số đã có trong `data_table`/evidence, không viết lại bằng lời. Câu `truy vấn dữ liệu`/`thị giác` thuần (đọc thẳng, không tính toán) để `derivation` rỗng — **không áp dụng theo tỷ lệ %, áp dụng theo loại câu hỏi**, tránh annotator phải tự đoán câu này có "tính" hay không. Xem ví dụ ở [docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất). Lý do thêm trường này: cho phép Pod C auto-check kết quả tính toán trước khi xác minh chéo thủ công (giảm lỗi số học sớm), và tận dụng lại được cho hướng RLVR ở [docs/04](04-model-strategy.md#hướng-mở-rộng-nếu-còn-thời-gian-tuần-7-trở-đi--sau-dự-án) nếu nhóm mở rộng — không tốn thêm công annotate vì annotator vốn đã tính ra đáp án trong đầu, chỉ cần ghi lại phép tính đó thay vì giấu đi.
 
 ## Quy trình 5 bước (chi tiết)
 
@@ -146,6 +152,7 @@ Khi Bước 3 phát hiện bất đồng không tự giải quyết được b�
 
 - [ ] Mỗi document có đủ tỷ trọng taxonomy theo mục tiêu ở [docs/02](02-dataset-design.md#taxonomy-câu-hỏi) — cả chiều loại suy luận lẫn chiều hop-type (≥1 câu multi-hop/document)
 - [ ] Mọi câu `hop_type != single_chart` đã qua phép thử bỏ text và có `evidence` đầy đủ
+- [ ] Mọi câu `answer_type: numeric` thuộc `compositional`/`thị giác + suy luận` có `derivation`, khớp với số trong `data_table`
 - [ ] Không có câu hỏi trùng lặp ý nghĩa trong cùng một document
 - [ ] Đáp án số giữ đúng định dạng/đơn vị xuất hiện trên chart
 - [ ] Câu hỏi "không trả lời được" có đáp án `"unanswerable"`, không để trống

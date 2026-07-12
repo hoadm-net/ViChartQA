@@ -11,16 +11,11 @@
 
 ## Miền dữ liệu
 
-Bản thiết kế đầu đặt mục tiêu 50/50 khoa học/kinh tế. Sau khi kiểm tra nhanh (11/07/2026): thể loại bài viết dạng "title + phân tích + 1-3 chart minh hoạ" là **thể loại lặp lại định kỳ** trong báo chí kinh tế tiếng Việt (vd. "Bức tranh kinh tế Việt Nam năm X và dự báo năm X+1" — xuất hiện hàng năm/hàng quý trên CafeF, và cả trên **consosukien.vn** — tạp chí chính thức của Tổng cục Thống kê, nguồn chính phủ rủi ro bản quyền thấp). Cùng một kiểm tra sơ bộ với báo khoa học (Tia Sáng) **không** cho tín hiệu tương tự — kết quả nghiêng về bài chính sách/bình luận (essay), ít bài dạng data-journalism nhiều chart.
+**Kinh tế là miền neo (anchor), đã xác nhận nguồn dồi dào** — thể loại "title + phân tích + 1-3 chart" lặp lại định kỳ trên báo kinh tế tiếng Việt (vd. "Bức tranh kinh tế Việt Nam năm X và dự báo năm X+1" trên CafeF; cũng có trên **consosukien.vn** — tạp chí chính thức Tổng cục Thống kê, rủi ro bản quyền thấp). Chủ đề: GDP/tăng trưởng, CPI/lạm phát, xuất nhập khẩu, thị trường lao động, ngân sách nhà nước, chứng khoán, FDI.
 
-**Hệ quả cho kế hoạch:**
+**Khoa học và miền khác (giáo dục, y tế, môi trường, năng lượng, xã hội...) là miền mở rộng**, nhận thêm nếu tìm được nguồn cùng dạng document — ưu tiên báo cáo thường niên chính phủ (Bộ KH&CN, NASATI, báo cáo môi trường quốc gia, EVN/Bộ Công thương, Bộ Y tế) hơn báo phổ biến khoa học kiểu Tia Sáng (kiểm tra sơ bộ cho thấy Tia Sáng nghiêng bài chính sách/bình luận, ít data-journalism nhiều chart). Tỷ trọng domain cuối cùng do nguồn cung quyết định.
 
-- **Không ép tỷ lệ 50/50.** Domain split sẽ do nguồn cung quyết định, xác nhận cụ thể ở Tuần 1 (xem checklist bên dưới).
-- **Kinh tế là miền neo (anchor), đã xác nhận khả thi.** Chủ đề: GDP/tăng trưởng, CPI/lạm phát, xuất nhập khẩu, thị trường lao động, ngân sách nhà nước, chứng khoán, FDI.
-- **Khoa học vẫn giữ làm miền phụ nếu tìm được nguồn đúng dạng** — ưu tiên thử **báo cáo thường niên chính phủ** (Bộ KH&CN, NASATI, báo cáo môi trường quốc gia, EVN/Bộ Công thương cho năng lượng, Bộ Y tế cho y tế công cộng) thay vì báo phổ biến khoa học kiểu Tia Sáng — báo cáo thường niên nhiều khả năng có cấu trúc multi-chart + narrative giống thể loại kinh tế đã xác nhận hơn.
-- **Mở thêm miền khác nếu tìm được nguồn cùng dạng** (giáo dục, y tế, môi trường, năng lượng, xã hội...) — không giới hạn cứng ở khoa học/kinh tế như bản đầu, miễn giữ được yêu cầu miền chuyên môn (không dùng ảnh tổng quát đời thường).
-
-**Việc cần làm Tuần 1 (Pod A):** lấy mẫu ~30-50 document ứng viên mỗi domain đang cân nhắc, đếm tỷ lệ đạt tiêu chí (≥1 đoạn văn bình luận trực tiếp vào số liệu chart, không chỉ caption 1 câu) trước khi chốt tỷ trọng domain cuối cùng — xem thêm [docs/05 Tuần 1](05-timeline-and-roles.md#tuần-1-1420-07--setup--pilot).
+**Tuần 1 (Pod A):** lấy mẫu ~30-50 document/domain đang cân nhắc, đếm tỷ lệ đạt tiêu chí (≥1 đoạn văn bình luận trực tiếp vào số liệu chart, không chỉ caption 1 câu) trước khi chốt tỷ trọng domain — xem [docs/05 Tuần 1](05-timeline-and-roles.md#tuần-1-1420-07--setup--pilot).
 
 ## Nguồn dữ liệu
 
@@ -149,9 +144,22 @@ Theo tỷ lệ tương tự ChartQA gốc (~77% / 10% / 13%), nhưng **chia theo
       "question_type": "compositional",
       "hop_type": "chart_to_chart",
       "requires_visual_reference": false,
+      "derivation": "",
       "evidence": [
-        { "hop": 1, "source": "chart", "chart_id": "fig1", "data_point": "2011, 2021" },
-        { "hop": 2, "source": "chart", "chart_id": "fig3", "data_point": "2011, 2021" }
+        { "hop": 1, "source": "chart", "chart_id": "fig1", "series": "GDP (triệu tỷ đồng)", "x": ["2011", "2021"] },
+        { "hop": 2, "source": "chart", "chart_id": "fig3", "series": "Kim ngạch xuất nhập khẩu (tỷ USD)", "x": ["2011", "2021"] }
+      ]
+    },
+    {
+      "question": "GDP năm 2021 tăng bao nhiêu triệu tỷ đồng so với năm 2011?",
+      "answer": "5.9",
+      "answer_type": "numeric",
+      "question_type": "compositional",
+      "hop_type": "single_chart",
+      "requires_visual_reference": false,
+      "derivation": "8.4 - 2.5",
+      "evidence": [
+        { "hop": 1, "source": "chart", "chart_id": "fig1", "series": "GDP (triệu tỷ đồng)", "x": ["2011", "2021"] }
       ]
     }
   ],
@@ -167,6 +175,17 @@ Theo tỷ lệ tương tự ChartQA gốc (~77% / 10% / 13%), nhưng **chia theo
 ```
 
 Trường `chart_complexity` (`simple`/`complex`) theo đúng định nghĩa ChartQA gốc: bảng dữ liệu 2 cột = simple, nhiều cột (stacked/grouped/multi-series) = complex. Trường `evidence` bắt buộc với mọi câu hỏi có `hop_type != single_chart` (câu `single_chart` có thể để evidence rỗng hoặc 1 phần tử) — đây là phần dùng để chứng minh với reviewer rằng multi-hop là thiết kế thật, không phải nhãn dán (xem [docs/01 mục 4b](01-related-work.md#4b-dòng-multi-hop-qa-trên-dữ-liệu-có-cấu-trúc-text--tablechart)).
+
+**Trường `derivation` (mới, tham khảo TAT-QA):** chỉ bắt buộc khi `answer_type: numeric` **và** `question_type` là `compositional` hoặc `thị giác + suy luận` có tính toán — công thức số học thuần dùng đúng số trong `data_table` (vd. `"8.4 - 2.5"`), để trống `""` với các loại còn lại (truy vấn dữ liệu, thị giác thuần, mọi câu trả lời không phải số). **Không** áp theo tỷ lệ % cố định — annotator chỉ ghi lại phép tính họ đã làm trong đầu để ra đáp án, không phát sinh việc mới. Lợi ích: (1) Pod C auto-eval công thức để đối chiếu với `answer` trước khi xác minh chéo thủ công, bắt lỗi số học sớm; (2) tái dùng trực tiếp cho hướng RLVR ở [docs/04](04-model-strategy.md#hướng-mở-rộng-nếu-còn-thời-gian-tuần-7-trở-đi--sau-dự-án) nếu nhóm mở rộng, không cần annotate lại. Đã cân nhắc và **bỏ** field `scale` (đơn vị) khỏi schema — rủi ro nhầm đơn vị thấp hơn kỳ vọng vì đơn vị đã nằm sẵn trong tên `series` (vd. `"GDP (triệu tỷ đồng)"`), thêm field riêng chỉ trùng lặp thông tin.
+
+### Định dạng `evidence` — tham chiếu bằng label, không mô tả tự do
+
+Tham khảo TAT-QA (`rel_paragraphs`: chỉ số đoạn văn) và FinQA (`ann_table_rows`: chỉ số hàng bảng) — cả hai đều tránh mô tả tự do vì khó annotator viết nhất quán và khó auto-check. Nhưng bảng của TAT-QA/FinQA chỉ có 1 dạng (hàng × cột); **chart của mình có nhiều loại (bar/line/pie/stacked/grouped/multi-line)**, không thể dùng "chỉ số hàng" chung cho tất cả — pie không có "hàng", stacked/grouped có nhiều chuỗi cùng một trục x. Giải pháp: tham chiếu qua đúng 2 trường đã có sẵn trong `data_table` (`x_axis` và `series`), áp dụng thống nhất cho mọi loại chart:
+
+- **`source: "chart"`** → `{chart_id, series, x}` trong đó `series` là tên chuỗi/legend **đúng như key trong `data_table.series`**, `x` là mảng nhãn trục x **đúng như giá trị trong `data_table.x_axis`** (1 phần tử = 1 điểm, ≥2 phần tử = so sánh/khoảng). Với pie chart: `x_axis` là tên các phần (lát cắt), `series` thường chỉ có 1 chuỗi — vẫn cùng công thức, không cần case riêng.
+- **`source: "text"`** → `{quote}` là một đoạn trích **nguyên văn ngắn** copy trực tiếp từ `body_text` (không diễn giải lại) — annotator chỉ cần bôi đen/copy, không cần đánh số câu hay dựng thêm công cụ tách câu.
+
+Vì cả `series` và `x` đều là giá trị **đã tồn tại sẵn** trong `data_table` (annotator không tạo ra khái niệm mới, chỉ trỏ vào dữ liệu đã nhập ở bước 0 của quy trình gán nhãn — xem [docs/03](03-annotation-guidelines.md)), nên vừa dễ viết (không cần học thêm quy ước đánh số) vừa auto-check được (so khớp chuỗi trực tiếp với `data_table`/`body_text`, phát hiện ngay nếu annotator trỏ nhầm series/x không tồn tại).
 
 ## Việc cần chốt trước khi crawl (Tuần 1)
 
