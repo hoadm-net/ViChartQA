@@ -12,15 +12,15 @@ Dự án **ViChartQA** hướng tới xây dựng tập dữ liệu đa phương
 
 ```mermaid
 graph TD
-    P1[Pod A: Thu thập Web<br>Sheet 1: 1_Documents + Sheet 2: 2_Charts 12 Cột] -->|Bàn giao Excel đã có ảnh & số liệu| P2[Pod B: Annotator Gán nhãn<br>Sheet 3: 3_QA Cột 1-14]
-    P2 -->|Bàn giao batch theo định mức linh hoạt| P3(Pod C: Reviewer Level 1<br>Blind Check 100% Cột 15-18)
-    P3 -->|Khớp hoàn toàn| P4_Pass[audit_status = Passed L1]
-    P3 -->|Lỗi / Sai đáp án / Thiếu đơn vị| P4_Rev[audit_status = Needs_Review<br>Ghi rõ audit_notes_and_auditor]
-    P4_Rev -->|Annotator sửa lại| P2
-    P4_Pass --> P5(Pod D: Lead QC Level 2<br>Audit ngẫu nhiên 30% + Ca khó)
-    P4_Rev -->|Xung đột không giải quyết được| P5
-    P5 -->|Chốt phán quyết| P6[audit_status = Passed_L2_QC]
-    P6 --> P7[Pod E: Chạy read_excel_to_json.py<br>Xuất file JSON chuẩn nghiên cứu]
+    P1["Pod A: Thu thập Web<br>Sheet 1: 1_Documents (7 Cột) + Sheet 2: 2_Charts (13 Cột)"] -->|"Bàn giao Excel đã có ảnh & số liệu"| P2["Pod B: Annotator Gán nhãn<br>Sheet 3: 3_QA Cột 1-14"]
+    P2 -->|"Bàn giao batch theo định mức linh hoạt"| P3("Pod C: Reviewer Level 1<br>Blind Check 100% Cột 15-18")
+    P3 -->|"Khớp hoàn toàn"| P4_Pass["audit_status = Passed L1"]
+    P3 -->|"Lỗi / Sai đáp án / Thiếu đơn vị"| P4_Rev["audit_status = Needs_Review<br>Ghi rõ audit_notes_and_auditor"]
+    P4_Rev -->|"Annotator sửa lại"| P2
+    P4_Pass --> P5("Pod D: Lead QC Level 2<br>Audit ngẫu nhiên 30% + Ca khó")
+    P4_Rev -->|"Xung đột không giải quyết được"| P5
+    P5 -->|"Chốt phán quyết"| P6["audit_status = Passed_L2_QC"]
+    P6 --> P7["Pod E: Chạy read_excel_to_json.py<br>Xuất file JSON chuẩn nghiên cứu"]
 ```
 
 ---
@@ -38,25 +38,24 @@ Pod A chịu trách nhiệm tìm kiếm bài báo, tải ảnh biểu đồ và 
   * Ảnh chụp màn hình dashboard mờ nhạt, độ phân giải thấp dưới 400x300px, chữ bị vỡ.
   * Infographic chắp vá không có trục tọa độ hoặc không rõ bảng số liệu gốc để trích xuất.
 
-### Bước 2: Nhập liệu cụ thể vào Sheet `1_Documents` (8 Cột)
+### Bước 2: Nhập liệu cụ thể vào Sheet `1_Documents` (7 Cột)
 
 > 📌 **Quy tắc:** Mỗi bài viết (bất kể bên trong có 1, 2 hay 3 biểu đồ) chỉ được nhập vào **ĐÚNG 1 DÒNG** trong Sheet `1_Documents`.
-> 🏷️ **Các cột CHỈ ĐƯỢC CHỌN TỪ DROPDOWN LIST:** Cột F (`domain`), Cột G (`ethics_status`).
+> 🏷️ **Các cột CHỈ ĐƯỢC CHỌN TỪ DROPDOWN LIST:** Cột E (`domain`), Cột F (`ethics_status`).
 
 | Cột | Tên trường     | Loại dữ liệu / Dropdown 🔽 | Ví dụ ĐÚNG ✅                                                                                                                                                                                          | Ví dụ SAI ❌                                                                             | Giải thích chi tiết & Lỗi thường gặp                                                                                                                                                                     |
 | :--- | :---------------- | :---------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A    | `document_id`   |             Text             | `DOC_ECON_001`                                                                                                                                                                                           | `vi_001`, `bài báo gso`                                                              | Viết hoa, theo cú pháp`DOC_[DOMAIN]_[STT 3 chữ số]`. Đây là khóa chính (Primary Key) để phân chia tập Train/Test không bị rò rỉ.                                                            |
 | B    | `title`         |             Text             | `GDP Việt Nam năm 2024 tăng trưởng ấn tượng 7,09%, quy mô kinh tế vượt 430 tỷ USD`                                                                                                          | `GDP tăng 7%`                                                                           | Copy nguyên văn tiêu đề gốc của bài báo. Không tự ý viết tắt hoặc cắt xén.                                                                                                                     |
-| C    | `body_text`     |          Text (Long)          | `Theo Tổng cục Thống kê, tăng trưởng GDP năm 2024 ước đạt 7,09%. Trong đó, khu vực nông lâm thủy sản tăng 3,27%; công nghiệp và xây dựng tăng 8,24%; dịch vụ tăng 7,06%...` | `(Copy toàn bộ cả quảng cáo, menu bài viết bên lề, lời cảm ơn tác giả...)` | **Chỉ copy các đoạn văn bản có chứa nhận định, số liệu liên quan đến chủ đề của biểu đồ.** Văn bản này là "cầu nối" để Pod B tạo câu hỏi multi-hop (`text_to_chart`). |
-| D    | `source_name`   |             Text             | `Tổng cục Thống kê (GSO)`                                                                                                                                                                            | `gso.gov.vn`                                                                             | Ghi rõ tên tổ chức/cơ quan phát hành, không ghi trọc tên miền.                                                                                                                                       |
-| E    | `source_url`    |             Text             | `https://consosukien.vn/gdp-2024.htm`                                                                                                                                                                    | `google.com`                                                                             | Bắt buộc phải có URL bài báo gốc để phục vụ tái kiểm định (Audit).                                                                                                                               |
-| F    | `domain`        |     **Dropdown 🔽**     | `economy`                                                                                                                                                                                                | `Kinh tế`                                                                               | Chọn đúng 1 trong 7 từ khóa tiếng Anh trong Dropdown:`economy`, `science`, `health`, `education`, `environment`, `society`, `other`.                                                        |
-| G    | `ethics_status` |     **Dropdown 🔽**     | `Public_OpenData`                                                                                                                                                                                        | `Open`                                                                                   | Chọn từ Dropdown:`Public_OpenData`, `News_AcademicAllowed`, hoặc `Restricted_NeedsCheck`.                                                                                                              |
-| H    | `collector`     |             Text             | `Nguyễn Văn A`                                                                                                                                                                                         | `A`                                                                                      | Ghi đầy đủ họ và tên người thu thập để tính KPI.                                                                                                                                                   |
+| C    | `source_name`   |             Text             | `Tổng cục Thống kê (GSO)`                                                                                                                                                                            | `gso.gov.vn`                                                                             | Ghi rõ tên tổ chức/cơ quan phát hành, không ghi trọc tên miền.                                                                                                                                       |
+| D    | `source_url`    |             Text             | `https://consosukien.vn/gdp-2024.htm`                                                                                                                                                                    | `google.com`                                                                             | Bắt buộc phải có URL bài báo gốc để phục vụ tái kiểm định (Audit).                                                                                                                               |
+| E    | `domain`        |     **Dropdown 🔽**     | `economy`                                                                                                                                                                                                | `Kinh tế`                                                                               | Chọn đúng 1 trong 7 từ khóa tiếng Anh trong Dropdown:`economy`, `science`, `health`, `education`, `environment`, `society`, `other`.                                                        |
+| F    | `ethics_status` |     **Dropdown 🔽**     | `Public_OpenData`                                                                                                                                                                                        | `Open`                                                                                   | Chọn từ Dropdown:`Public_OpenData`, `News_AcademicAllowed`, hoặc `Restricted_NeedsCheck`.                                                                                                              |
+| G    | `collector`     |             Text             | `Nguyễn Văn A`                                                                                                                                                                                         | `A`                                                                                      | Ghi đầy đủ họ và tên người thu thập để tính KPI.                                                                                                                                                   |
 
 ---
 
-### Bước 3: Nhập liệu cụ thể vào Sheet `2_Charts` (12 Cột)
+### Bước 3: Nhập liệu cụ thể vào Sheet `2_Charts` (13 Cột)
 
 > 📌 **Quy tắc:** Mỗi biểu đồ trong bài báo được nhập thành **1 DÒNG RIÊNG** trong Sheet `2_Charts`. Khóa ngoại `document_id` phải khớp 100% với Sheet 1.
 > 🏷️ **Các cột CHỈ ĐƯỢC CHỌN TỪ DROPDOWN LIST:** Cột E (`chart_type`).
@@ -68,13 +67,14 @@ Pod A chịu trách nhiệm tìm kiếm bài báo, tải ảnh biểu đồ và 
 | C    | `chart_position`                           |               Text               | `Figure 1`                                                                                                                                          | `hình đầu tiên`                                      | Ghi`Figure 1`, `Figure 2`, hoặc `Hình 1`, `Hình 2` hiển thị dưới caption ảnh.                                                                                                                                                                                        |
 | D    | `chart_title`                              |               Text               | `Tốc độ tăng trưởng GDP Việt Nam giai đoạn 2015-2024 (%)`                                                                                  | `Biểu đồ GDP`                                         | Tiêu đề riêng của hình vẽ (nếu trên ảnh không có thì lấy caption ngay bên dưới ảnh).                                                                                                                                                                               |
 | E    | `chart_type`                               |      **Dropdown 🔽**      | `Bar`                                                                                                                                               | `biểu đồ cột`                                        | Chọn chuẩn từ Dropdown:`Bar`, `Line`, `Pie`, `Grouped bar`, `Stacked bar`, `Multi-line`, `Scatter`, `Other`.                                                                                                                                                      |
-| F    | `unit`                                     |               Text               | `%` *(hoặc `Trục X: USD \| Trục Y: Năm` / `Trục trái: tỷ đồng \| Trục phải: %`)*                                                     | `phần trăm`                                            | Ghi ký hiệu ngắn gọn thể hiện trên trục.**Nếu 2 trục có đơn vị khác nhau hoặc biểu đồ Trục Kép (Dual Axis), phải ghi rõ cả 2 đơn vị phân cách bằng dấu `\|`**.                                                                                 |
-| G    | `num_series`                               |           Số nguyên           | `1` (hoặc `2`, `3`...)                                                                                                                         | `Đơn`                                                  | Ghi số nguyên thể hiện số lượng chuỗi dữ liệu.**Lưu ý:** Độ phức tạp `chart_complexity` tự động phái sinh từ số này (`1` = `simple`, $\ge 2$ = `complex`).                                                                                    |
-| H    | `image_path`                               |               Text               | `images/econ/doc_econ_001_fig1.png`                                                                                                                 | `C:\Users\Admin\Desktop\fig1.png`                        | **Bắt buộc dùng đường dẫn tương đối** từ thư mục gốc của dự án. File ảnh lưu format `.png` hoặc `.jpg`.                                                                                                                                               |
-| I    | `x_axis_labels` *(Nhãn trục X)*        |               Text               | `2015, 2016, 2017, 2018, 2019, 2020` *(Hoặc `100, 200, 300 (USD)`)*                                                                            | `[2015, 2016, ...]` *(Gõ ngoặc vuông kiểu JSON)*   | **Quy tắc phẳng:** Gõ danh sách nhãn trên trục hoành theo thứ tự từ trái sang phải, ngăn cách bằng dấu phẩy `,`. Nếu trục X là biến số có đơn vị riêng (VD trong Scatter plot), ghi kèm đơn vị ở cuối.                                     |
-| J    | `y_axis_labels` *(Nhãn trục Y - MỚI)* | Text (Multiline nếu Trục Kép) | `0, 2, 4, 6, 8, 10 (%)` *(Hoặc nhấn Alt+Enter cho Trục kép: `Trục Y trái (tỷ đồng): 0, 500, 1000` \n `Trục Y phải (%): 0, 5, 10`)* | `10% max`                                                | **Quy tắc phẳng:** Gõ danh sách các mốc chia trên trục tung từ dưới lên trên, ngăn cách bằng dấu phẩy `,`. Nếu biểu đồ Pie hoặc không có trục Y $\rightarrow$ Ghi `Không có (Pie chart)`.                                                    |
-| K    | `series_data` *(Số liệu chuỗi)*       |         Text (Multiline)         | `Tăng trưởng GDP (%): 6.68, 6.21, 6.81, 7.08, 7.02, 2.91, 2.58, 8.02, 5.05, 7.09`                                                                | `{"GDP": [6.68, ...]}` *(Gõ JSON dễ lỗi cú pháp)* | **Quy tắc phẳng nhiều dòng:** Cú pháp `[Tên chuỗi (Đơn vị)]: [Số liệu 1], [Số liệu 2]...`. Nếu có 2 chuỗi trở lên, nhấn `Alt + Enter` xuống dòng để gõ chuỗi tiếp theo. **Số lượng giá trị BẮT BUỘC bằng số nhãn ở trục X.** |
-| L    | `notes`                                    |               Text               | `Trục kép bên trái %, bên phải tỷ đồng`                                                                                                    | `OK`                                                     | Ghi chú các điểm đặc biệt giúp Annotator/Auditor chú ý khi làm việc.                                                                                                                                                                                                     |
+| F    | `body_text`                                |          Text (Long)          | `Theo Tổng cục Thống kê, tăng trưởng GDP năm 2024 ước đạt 7,09%. Trong đó, khu vực nông lâm thủy sản tăng 3,27%; công nghiệp và xây dựng tăng 8,24%...` | `(Copy toàn bộ cả quảng cáo, menu bài viết bên lề, lời cảm ơn tác giả...)` | **Chỉ copy các đoạn văn bản có chứa nhận định, số liệu liên quan trực tiếp đến biểu đồ này.** Vì một bài có thể có nhiều biểu đồ, việc chuyển `body_text` sang Sheet `2_Charts` giúp tách bạch chính xác đoạn ngữ cảnh tương ứng với từng hình, làm nguyên liệu cho Pod B tạo câu hỏi multi-hop (`text_to_chart`). |
+| G    | `unit`                                     |               Text               | `%` *(hoặc `Trục X: USD \| Trục Y: Năm` / `Trục trái: tỷ đồng \| Trục phải: %`)*                                                     | `phần trăm`                                            | Ghi ký hiệu ngắn gọn thể hiện trên trục.**Nếu 2 trục có đơn vị khác nhau hoặc biểu đồ Trục Kép (Dual Axis), phải ghi rõ cả 2 đơn vị phân cách bằng dấu `\|`**.                                                                                 |
+| H    | `num_series`                               |           Số nguyên           | `1` (hoặc `2`, `3`...)                                                                                                                         | `Đơn`                                                  | Ghi số nguyên thể hiện số lượng chuỗi dữ liệu.**Lưu ý:** Độ phức tạp `chart_complexity` tự động phái sinh từ số này (`1` = `simple`, $\ge 2$ = `complex`).                                                                                    |
+| I    | `image_path`                               |               Text               | `images/econ/doc_econ_001_fig1.png`                                                                                                                 | `C:\Users\Admin\Desktop\fig1.png`                        | **Bắt buộc dùng đường dẫn tương đối** từ thư mục gốc của dự án. File ảnh lưu format `.png` hoặc `.jpg`.                                                                                                                                               |
+| J    | `x_axis_labels` *(Nhãn trục X)*        | Text *(Multiline nếu Biểu đồ Ghép)* | `2015, 2016, 2017...` *(Hoặc nhấn Alt+Enter cho Biểu đồ ghép: `Bảng trái: Phú Thọ, Nam Định...` \n `Bảng phải: Hà Nội, Lạng Sơn...`)* | `[2015, 2016, ...]` *(Gõ ngoặc vuông kiểu JSON)*   | **Quy tắc phẳng:** Gõ danh sách nhãn trên trục hoành theo thứ tự từ trái sang phải, ngăn cách bằng dấu phẩy `,`. **Nếu là Biểu đồ Ghép đôi / Đa bảng (Composite chart) có nhiều cụm trục X riêng biệt, nhấn `Alt + Enter` xuống dòng để ghi từng cụm nhãn.** |
+| K    | `y_axis_labels` *(Nhãn trục Y - MỚI)* | Text (Multiline nếu Trục Kép) | `0, 2, 4, 6, 8, 10 (%)` *(Hoặc nhấn Alt+Enter cho Trục kép: `Trục Y trái (tỷ đồng): 0, 500, 1000` \n `Trục Y phải (%): 0, 5, 10`)* | `10% max`                                                | **Quy tắc phẳng:** Gõ danh sách các mốc chia trên trục tung từ dưới lên trên, ngăn cách bằng dấu phẩy `,`. Nếu biểu đồ Pie hoặc không có trục Y $\rightarrow$ Ghi `Không có (Pie chart)`.                                                    |
+| L    | `series_data` *(Số liệu chuỗi)*       |         Text (Multiline)         | `Tăng trưởng GDP (%): 6.68, 6.21, 6.81, 7.08, 7.02, 2.91, 2.58, 8.02, 5.05, 7.09`                                                                | `{"GDP": [6.68, ...]}` *(Gõ JSON dễ lỗi cú pháp)* | **Quy tắc phẳng nhiều dòng:** Cú pháp `[Tên chuỗi (Đơn vị)]: [Số liệu 1], [Số liệu 2]...`. Nếu có 2 chuỗi trở lên, nhấn `Alt + Enter` xuống dòng để gõ chuỗi tiếp theo. **Số lượng giá trị BẮT BUỘC bằng số nhãn ở trục X.** |
+| M    | `notes`                                    |               Text               | `Trục kép bên trái %, bên phải tỷ đồng`                                                                                                    | `OK`                                                     | Ghi chú các điểm đặc biệt giúp Annotator/Auditor chú ý khi làm việc.                                                                                                                                                                                                     |
 
 #### 💡 Ví dụ Minh họa Nhập liệu `series_data` & Trục X/Y khác Đơn vị (`Alt + Enter`):
 
@@ -82,10 +82,10 @@ Pod A chịu trách nhiệm tìm kiếm bài báo, tải ảnh biểu đồ và 
 
 Giả sử biểu đồ so sánh Doanh thu và Lợi nhuận 3 năm `2022, 2023, 2024` (Cùng đơn vị tỷ đồng).
 
-* Cột F (`unit`) nhập: `tỷ đồng`
-* Cột I (`x_axis_labels`) nhập: `2022, 2023, 2024`
-* Cột J (`y_axis_labels`) nhập: `0, 500, 1000, 1500, 2000 (tỷ đồng)`
-* Cột K (`series_data`) nhập (nhấn `Alt + Enter` ở giữa 2 dòng):
+* Cột G (`unit`) nhập: `tỷ đồng`
+* Cột J (`x_axis_labels`) nhập: `2022, 2023, 2024`
+* Cột K (`y_axis_labels`) nhập: `0, 500, 1000, 1500, 2000 (tỷ đồng)`
+* Cột L (`series_data`) nhập (nhấn `Alt + Enter` ở giữa 2 dòng):
   ```text
   Doanh thu (tỷ đồng): 1200, 1450, 1800
   Lợi nhuận (tỷ đồng): 150, 210, 320
@@ -95,19 +95,41 @@ Giả sử biểu đồ so sánh Doanh thu và Lợi nhuận 3 năm `2022, 2023,
 
 Giả sử biểu đồ **Trục Kép (Dual Y-Axis)** thể hiện **Doanh thu (tỷ đồng - Trục Y trái)** và **Tăng trưởng (% - Trục Y phải)** qua 3 năm `2022, 2023, 2024`.
 
-* Cột F (`unit`) nhập: `Trục trái: tỷ đồng | Trục phải: %`
-* Cột I (`x_axis_labels`) nhập: `2022, 2023, 2024`
-* Cột J (`y_axis_labels`) nhập (nhấn `Alt + Enter` để gõ 2 trục Y):
+* Cột G (`unit`) nhập: `Trục trái: tỷ đồng | Trục phải: %`
+* Cột J (`x_axis_labels`) nhập: `2022, 2023, 2024`
+* Cột K (`y_axis_labels`) nhập (nhấn `Alt + Enter` để gõ 2 trục Y):
   ```text
   Trục Y trái (tỷ đồng): 0, 500, 1000, 1500, 2000
   Trục Y phải (%): 0, 5, 10, 15
   ```
-* Cột K (`series_data`) nhập (ghi rõ đơn vị của từng chuỗi ngay trong tên chuỗi):
+* Cột L (`series_data`) nhập (ghi rõ đơn vị của từng chuỗi ngay trong tên chuỗi):
   ```text
   Doanh thu (tỷ đồng): 1200, 1450, 1800
   Tốc độ tăng trưởng (%): 5.2, 8.1, 10.5
   ```
-* Cột L (`notes`) nhập: `Biểu đồ trục kép (Dual Y-axis chart): Trục Y bên trái là tỷ đồng cho Doanh thu, Trục Y bên phải là % cho Tăng trưởng.`
+* Cột M (`notes`) nhập: `Biểu đồ trục kép (Dual Y-axis chart): Trục Y bên trái là tỷ đồng cho Doanh thu, Trục Y bên phải là % cho Tăng trưởng.`
+
+##### 3. Biểu đồ Ghép đôi / Đa bảng trên cùng 1 ảnh (Composite / Panel Chart):
+
+Giả sử hình vẽ (`FIG4`) bao gồm 2 biểu đồ con nằm cạnh nhau: **Bảng trái** thể hiện *10 địa phương tăng IIP cao nhất* và **Bảng phải** thể hiện *10 địa phương tăng thấp hoặc giảm*.
+
+* Cột G (`unit`) nhập: `%` *(Hoặc nếu 2 bảng khác đơn vị thì nhập phân cách bằng dấu `|`: `Bảng trái: % | Bảng phải: tỷ đồng`)*
+* Cột J (`x_axis_labels`) nhập (nhấn `Alt + Enter` để tách nhãn trục X của 2 bảng con):
+  ```text
+  Nhóm tăng cao nhất: Phú Thọ, Nam Định, Bắc Giang, Hà Nam, Vĩnh Phúc, Quảng Ngãi, Thái Bình, Huế, Tiền Giang, Kiên Giang
+  Nhóm tăng thấp hoặc giảm: Bà Rịa - Vũng Tàu, Bình Thuận, Khánh Hòa, Cao Bằng, Lai Châu, Bạc Liêu, Hà Tĩnh, Quảng Trị, Lạng Sơn, Hà Nội
+  ```
+* Cột K (`y_axis_labels`) nhập (nhấn `Alt + Enter` vì thang chia độ trục Y 2 bên khác nhau):
+  ```text
+  Trục Y trái (%): 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0
+  Trục Y phải (%): -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0
+  ```
+* Cột L (`series_data`) nhập (nhấn `Alt + Enter` tách 2 chuỗi, mỗi chuỗi có số lượng giá trị khớp 100% với số lượng nhãn ở trục X tương ứng):
+  ```text
+  10 địa phương tăng IIP cao nhất (%): 45.5, 32.6, 27.0, 22.1, 18.9, 18.7, 18.0, 17.5, 16.1, 15.8
+  10 địa phương tăng thấp hoặc giảm (%): -2.6, 0.1, 1.7, 2.3, 2.4, 3.1, 4.6, 5.1, 5.7, 5.9
+  ```
+* Cột M (`notes`) nhập: `Biểu đồ ghép đôi (Composite/Panel chart): Bên trái là 10 địa phương tăng cao nhất, bên phải là 10 địa phương tăng thấp hoặc giảm. Thang đo trục tung 2 bên khác nhau.`
 
 ---
 
@@ -117,24 +139,24 @@ Pod B tiếp nhận Excel đã có `1_Documents` và `2_Charts`. Nhiệm vụ l�
 
 ### Bước 1: Chiến lược Định mức & Số lượng Câu hỏi Linh hoạt (Flexible Quota Strategy)
 
-> 🔴 **NGUYÊN TẮC LINH HOẠT SỐ LƯỢNG:** Thay vì áp đặt máy móc số lượng cố định, Annotator phải **phân bổ số lượng câu hỏi một cách linh hoạt tùy thuộc vào độ phong phú của dữ liệu và độ khó của biểu đồ/bài viết**:
+> 📌 **NGUYÊN TẮC LINH HOẠT SỐ LƯỢNG:** Người gán nhãn (Annotator) cần **phân bổ số lượng câu hỏi một cách linh hoạt tùy thuộc vào hàm lượng thông tin của dữ liệu và độ phức tạp của biểu đồ/bài viết**:
 
 | Nhóm Phân loại Biểu đồ / Bài viết                                                    | Đặc điểm & Độ phức tạp                                                                                                                                                                                |                   Định mức Câu hỏi Khuyến nghị                   | Mô tả Chiến lược Đặt câu hỏi                                                                                                                                                                                                                                                                                                                                                                                  |
 | :------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Nhóm 1: Biểu đồ / Bài viết Đơn giản (Simple)**                              | Biểu đồ đơn (`num_series = 1`), ít nhãn trục X ($\le 5$ mốc), bài báo ngắn gọn ít nhận định số liệu.                                                                                   |                        **1 – 2 câu hỏi**                        | Chỉ hỏi 1 câu`data_retrieval` hoặc 1 câu so sánh đơn giản (`comparison`). **Tuyệt đối không cố nhồi nhét tạo câu hỏi gượng ép, lặp ý.**                                                                                                                                                                                                                                              |
-| **Nhóm 2: Biểu đồ / Bài viết Tiêu chuẩn (Standard)**                           | Biểu đồ có lượng thông tin trung bình (6-12 mốc trục X), hoặc 2 chuỗi dữ liệu (`num_series = 2`), bài báo có đủ ngữ cảnh.                                                              |                        **3 – 4 câu hỏi**                        | Phân bổ rải đều: 1 câu`data_retrieval/ranking` + 1 câu `visual/comparison` + 1 câu `compositional` + 1 câu `text_to_chart/unanswerable`.                                                                                                                                                                                                                                                              |
-| **Nhóm 3: Bài viết Đa Biểu đồ & Thông tin Phong phú (Complex / 2–3 Charts)** | Bài báo dài có**2 đến 3 biểu đồ phức tạp** (`Grouped bar`, `Stacked bar`, `Dual axis`, nhiều chuỗi), chứa phong phú số liệu, claim kinh tế đa chiều.                          |                        **7 – 8 câu hỏi**                        | Tận dụng tối đa sự phong phú để tạo bộ câu hỏi đa chiều chất lượng cao: 2 câu hỏi kết hợp chéo biểu đồ (`chart_to_chart`), 2 câu hỏi kiểm chứng văn bản (`text_to_chart`, `fact_check_dual`), 2 câu suy luận nhiều bước (`compositional`), và 1-2 câu trắc nghiệm `mcq` / giả định `hypothetical`.                                                              |
-| **Nhóm 4: Bài viết Siêu Đa Biểu đồ (Ultra Multi-chart / > 3 Biểu đồ)**      | Bài viết/báo cáo phân tích chuyên sâu có**từ 4 biểu đồ trở lên (VD: 4, 5, 6... biểu đồ)**, chứa khối lượng dữ liệu lớn, nhiều chuỗi và đa chỉ tiêu liên kết với nhau. | **9 – 12+ câu hỏi** *(Trung bình ~2.5 – 3 câu/biểu đồ)* | **Tập trung tối đa vào suy luận liên kết (`chart_to_chart` & `text_to_chart`):** Phân bổ 3–4 câu hỏi đối chiếu chéo giữa các biểu đồ (`FIG1` vs `FIG3`, `FIG2` vs `FIG4`), 3–4 câu kết hợp văn bản (`text_to_chart`), 3–4 câu tính toán sâu (`compositional/visual_reasoning`), và 1–2 câu `mcq/unanswerable`. *(Xem chi tiết hướng dẫn bên dưới)* |
+| **Nhóm 1: Biểu đồ / Bài viết Đơn giản (Simple)**                              | Biểu đồ đơn (`num_series = 1`), ít nhãn trục X ($\le 5$ mốc), bài báo ngắn gọn ít nhận định số liệu.                                                                                   |                        **1 – 2 câu hỏi**                        | Chỉ hỏi 1 câu `data_retrieval` hoặc 1 câu so sánh đơn giản (`comparison`). Tránh tạo câu hỏi lặp lại hoặc cố gắng gia tăng số lượng khi dữ liệu không đủ phức tạp.                                                                                                                                                                                                               |
+| **Nhóm 2: Biểu đồ / Bài viết Tiêu chuẩn (Standard)**                           | Biểu đồ có lượng thông tin trung bình (6-12 mốc trục X), hoặc 2 chuỗi dữ liệu (`num_series = 2`), bài báo có đủ ngữ cảnh.                                                              |                        **3 – 4 câu hỏi**                        | Phân bổ rải đều: 1 câu `data_retrieval/ranking` + 1 câu `visual/comparison` + 1 câu `compositional` + 1 câu `text_to_chart/unanswerable`.                                                                                                                                                                                                                                                              |
+| **Nhóm 3: Bài viết Đa Biểu đồ & Thông tin Phong phú (Complex / 2–3 Charts)** | Bài báo dài có **2 đến 3 biểu đồ phức tạp** (`Grouped bar`, `Stacked bar`, `Dual axis`, nhiều chuỗi), chứa phong phú số liệu, claim kinh tế đa chiều.                          |                        **7 – 8 câu hỏi**                        | Tận dụng tối đa sự phong phú để tạo bộ câu hỏi đa chiều chất lượng cao: 2 câu hỏi kết hợp chéo biểu đồ (`chart_to_chart`), 2 câu hỏi kiểm chứng văn bản (`text_to_chart`, `fact_check_dual`), 2 câu suy luận nhiều bước (`compositional`), và 1-2 câu trắc nghiệm `mcq` / giả định `hypothetical`.                                                              |
+| **Nhóm 4: Bài viết Đa Biểu đồ Chuyên sâu (> 3 Biểu đồ)**      | Bài viết/báo cáo phân tích chuyên sâu có **từ 4 biểu đồ trở lên (VD: 4, 5, 6... biểu đồ)**, chứa khối lượng dữ liệu lớn, nhiều chuỗi và đa chỉ tiêu liên kết với nhau. | **9 – 12+ câu hỏi** *(Trung bình ~2.5 – 3 câu/biểu đồ)* | **Tập trung vào suy luận liên kết (`chart_to_chart` & `text_to_chart`):** Phân bổ 3–4 câu hỏi đối chiếu chéo giữa các biểu đồ (`FIG1` vs `FIG3`, `FIG2` vs `FIG4`), 3–4 câu kết hợp văn bản (`text_to_chart`), 3–4 câu tính toán sâu (`compositional/visual_reasoning`), và 1–2 câu `mcq/unanswerable`. *(Xem chi tiết hướng dẫn bên dưới)* |
 
-> 📌 **LƯU Ý ĐẶC BIỆT CHO ANNOTATOR KHI BÀI VIẾT CÓ NHIỀU HƠN 3 BIỂU ĐỒ (> 3 CHARTS):**
-> Khi gặp các bài báo cáo hoặc chuyên đề lớn có từ 4, 5, 6... hình biểu đồ trở lên, Annotator cần tuân thủ 4 quy định đặc thù sau đây để tối ưu hóa chất lượng và tránh nhầm lẫn:
+> 📌 **QUY ĐỊNH ĐẶC THÙ CHO ANNOTATOR KHI BÀI VIẾT CÓ NHIỀU HƠN 3 BIỂU ĐỒ (> 3 CHARTS):**
+> Khi xử lý các bài báo cáo hoặc chuyên đề phân tích có từ 4, 5, 6... hình biểu đồ trở lên, Người gán nhãn (Annotator) cần tuân thủ 4 nguyên tắc sau đây để tối ưu hóa chất lượng bộ dữ liệu:
 >
-> 1. **Khắc phục "Cạm bẫy rập khuôn" (Quality over Quantity):** Khi đối mặt với nhiều biểu đồ, Annotator rất dễ mắc tâm lý mệt mỏi và tạo ra 12–15 câu hỏi đơn giản (`data_retrieval`) giống hệt nhau chỉ thay mã hình/năm. **Quy tắc bắt buộc:** Thà tạo **9–10 câu hỏi chất lượng cao, suy luận sâu nhiều bước (`compositional`, `chart_to_chart`)** còn hơn tạo ra 15 câu rập khuôn, dễ dãi.
-> 2. **Phân bổ không cào bằng từng biểu đồ:** Không bắt buộc mỗi biểu đồ trong bài phải chia đều số lượng câu hỏi. Nếu `FIG1`, `FIG3` cực kỳ phức tạp và giàu chỉ số, hãy đặt 3–4 câu cho mỗi hình này. Nếu `FIG2` hoặc `FIG5` quá đơn giản (chỉ có 2-3 cột đơn), chỉ cần đặt 1 câu hoặc dùng làm dữ liệu phụ để đối chiếu chéo.
-> 3. **Đòn bẩy tối đa cho `chart_to_chart` (Đối chiếu chéo liên biểu đồ):** Đây là điểm giá trị nhất của bài viết có > 3 biểu đồ! Hãy tạo các câu hỏi yêu cầu đọc số liệu từ **2 hoặc 3 hình khác nhau** để suy luận đáp án.
+> 1. **Đảm bảo chiều sâu lập luận và tránh trùng lặp mẫu câu (Quality & Complexity Priority):** Đối với các tài liệu chứa số lượng biểu đồ lớn, cần tránh tình trạng tạo ra cụm câu hỏi trích xuất dữ liệu trực tiếp (`data_retrieval`) có cấu trúc lặp lại định rập (chỉ thay đổi mã hình hoặc chỉ tiêu năm). **Yêu cầu bắt buộc:** Ưu tiên xây dựng từ **9–10 câu hỏi có chất lượng và độ phức tạp cao, đòi hỏi suy luận nhiều bước (`compositional`, `chart_to_chart`)** thay vì gia tăng số lượng câu hỏi đơn giản không đóng góp vào việc đa dạng hóa nhận thức mô hình.
+> 2. **Phân bổ số lượng câu hỏi theo độ phức tạp của từng biểu đồ:** Không áp dụng phân chia cơ học số lượng câu hỏi cho mọi biểu đồ trong bài. Nếu `FIG1` và `FIG3` có mật độ thông tin cao và nhiều chỉ số phức tạp, cần ưu tiên phân bổ 3–4 câu hỏi/biểu đồ. Nếu `FIG2` hoặc `FIG5` có cấu trúc đơn giản (biểu đồ cột đơn giản 2–3 nhãn), chỉ cần phân bổ 1 câu hỏi độc lập hoặc sử dụng làm nguồn dữ liệu bổ trợ cho các câu hỏi suy luận chéo.
+> 3. **Tối ưu hóa lập luận liên biểu đồ (`chart_to_chart` & Cross-chart Reasoning):** Đối với tài liệu có > 3 biểu đồ, cần tập trung khai thác các mối liên hệ thực tế giữa nhiều biểu đồ. Xây dựng các câu hỏi yêu cầu tổng hợp, đối chiếu số liệu từ **2 hoặc 3 biểu đồ khác nhau** để suy luận ra đáp án chung.
 >    * *Ví dụ:* *"Tốc độ tăng trưởng GDP năm 2024 trên `FIG1` cao gấp bao nhiêu lần tỷ lệ lạm phát bình quân thể hiện trên `FIG4`?"*
 >    * *Ví dụ:* *"So với cơ cấu lao động ngành công nghiệp trên `FIG2`, giá trị xuất khẩu công nghiệp trên `FIG5` có xu hướng đồng biến hay nghịch biến trong giai đoạn 2020-2023?"*
-> 4. **Ghi rõ và chuẩn xác ID Hình (`evidence_hops` & Khóa `chart_unique_id`):** Vì bài có rất nhiều hình (`FIG1`, `FIG2`, `FIG3`, `FIG4`...), tại Cột K (`evidence_hops`) BẮT BUỘC phải ghi chính xác tiền tố mã hình cho từng dòng bằng chứng (VD: `DOC_ECON_005_FIG1: ...` xuống dòng `DOC_ECON_005_FIG4: ...`). Nếu phát hiện Pod A chưa nhập đủ các hình vào Sheet `2_Charts`, Pod B cần yêu cầu Pod A bổ sung hoặc tự nhập đủ hình trước khi đặt câu hỏi.
+> 4. **Ghi nhận chuẩn xác ID Biểu đồ (`evidence_hops` & Khóa `chart_unique_id`):** Do bài viết có số lượng hình lớn (`FIG1`, `FIG2`, `FIG3`, `FIG4`...), tại Cột K (`evidence_hops`) BẮT BUỘC phải ghi chính xác tiền tố mã hình cho từng dòng bằng chứng (VD: `DOC_ECON_005_FIG1: ...` xuống dòng `DOC_ECON_005_FIG4: ...`). Nếu phát hiện Pod A chưa nhập đủ các hình vào Sheet `2_Charts`, Pod B cần thông báo hoặc bổ sung đầy đủ dữ liệu hình trước khi tiến hành đặt câu hỏi.
 
 #### 🎯 Quy định Tỷ lệ Cân bằng Toàn tập dữ liệu (Macro Quota Requirements):
 
@@ -181,13 +203,13 @@ Nhóm Annotator và Reviewer đảm bảo tính đa dạng chung trên toàn dat
 | `hypothetical`       | Khi câu hỏi đặt ra**một tình huống giả định** (nếu tăng/giảm, nếu duy trì xu hướng) nằm ngoài quan sát thực tế trên biểu đồ.                       | *"Nếu tốc độ tăng trưởng năm 2025 cao gấp đôi mức tăng của năm 2024, thì năm 2025 sẽ đạt bao nhiêu %?"*          | Không đặt các câu giả định viển vông, không có cơ sở số liệu trên chart để tính ra đáp án.            |
 | `fact_check`         | Khi câu hỏi đưa ra 1 mệnh đề/nhận định và yêu cầu kiểm chứng**Đúng hay Sai (`True/False`)**.                                                              | *"Đúng hay sai: Tốc độ tăng trưởng GDP năm 2022 là mức cao nhất trong toàn bộ giai đoạn 10 năm?"*                    | Đáp án tại Cột E**BẮT BUỘC** chỉ được ghi `Đúng` hoặc `Sai` (hoặc `True`/`False`).              |
 | `multi_turn`         | Khi tạo 2 câu hỏi liên tiếp cùng mã ảnh mà**câu sau phụ thuộc vào ngữ cảnh/đối tượng vừa tìm được ở câu trước**.                                 | *(Câu 2): "Vậy chênh lệch giữa năm đạt đỉnh vừa tìm được với năm thấp nhất là bao nhiêu?"*                       | Chỉ dùng cho chuỗi hội thoại nhiều lượt liền kề nhau.                                                              |
-| `unanswerable`       | Khi cố ý hỏi thông tin**không tồn tại trên biểu đồ/văn bản** để bẫy, kiểm tra khả năng chống ảo giác (hallucination) của AI.                          | *"Tỷ lệ thất nghiệp của nam giới năm 2024 là bao nhiêu theo biểu đồ?"* *(Trong khi chart chỉ thể hiện lạm phát)*   | Đáp án tại Cột E**BẮT BUỘC** phải ghi rõ là **`Không thể trả lời`** (hoặc `unanswerable`).    |
+| `unanswerable`       | Khi thiết kế câu hỏi về các thông tin **không tồn tại trên biểu đồ hoặc văn bản** nhằm kiểm tra và đánh giá khả năng nhận diện giới hạn dữ liệu, chống ảo giác (hallucination) của mô hình.                          | *"Tỷ lệ thất nghiệp của nam giới năm 2024 là bao nhiêu theo biểu đồ?"* *(Trong khi chart chỉ thể hiện lạm phát)*   | Đáp án tại Cột E**BẮT BUỘC** phải ghi rõ là **`Không thể trả lời`** (hoặc `unanswerable`).    |
 
 ---
 
 #### 3.2. Bảng Giải thích Chi tiết 4 Giá trị Dropdown `hop_type` & Phép thử Bỏ Text:
 
-> 🔴 **PHÉP THỬ BỎ TEXT (THE NO-TEXT TEST):**Trước khi chọn `text_to_chart` hoặc `chart_to_chart`, hãy che toàn bộ Cột C (`body_text`) đi, chỉ nhìn duy nhất vào hình ảnh biểu đồ:
+> 🔴 **PHÉP THỬ BỎ TEXT (THE NO-TEXT TEST):**Trước khi chọn `text_to_chart` hoặc `chart_to_chart`, hãy che toàn bộ Cột F (`body_text` ở Sheet `2_Charts`) đi, chỉ nhìn duy nhất vào hình ảnh biểu đồ:
 >
 > * Nếu **vẫn trả lời được 100% từ ảnh** $\rightarrow$ Bạn **BẮT BUỘC chọn `single_chart`**. (Cho dù trong bài viết tác giả có nhắc lại con số đó thì vẫn tính là `single_chart` vì ảnh đã có đủ thông tin!).
 > * Nếu **không thể trả lời nếu thiếu văn bản** (vì có 1 con số, chỉ tiêu, nhận định chỉ nằm trong chữ) $\rightarrow$ Bạn mới được chọn `text_to_chart` hoặc `fact_check_dual`.
@@ -216,7 +238,7 @@ Nhóm Annotator và Reviewer đảm bảo tính đa dạng chung trên toàn dat
   * **Câu hỏi:** *"Năm đạt tốc độ tăng trưởng cao nhất trong giai đoạn có giá trị gấp bao nhiêu lần năm có tốc độ tăng trưởng thấp nhất năm 2021?"*
   * **Các bước (`reasoning_steps`):**`Bước 1:` Tìm năm có đỉnh cao nhất là 2022 đạt 8.02% (**Tìm lớn nhất — `Max_value` / `Argmax`**).`Bước 2:` Đọc giá trị năm 2021 là 2.58%.`Bước 3:` Thực hiện phép chia lấy tỷ lệ gấp bao nhiêu lần: $8.02 / 2.58 = 3.11$ lần (**Phép chia tỷ lệ — `Divide` hoặc `Ratio`**).
   * 👉 **Cột H (`math_operation`) gõ chuẩn:** `Argmax, Divide` (Hoặc `Max_value, Ratio`).
-* ⚠️ **SỰ KHÁC BIỆT SỐNG CÒN GIỮA `MAX_VALUE` vs `ARGMAX` (Và `MIN` vs `ARGMIN`):**
+* **Phân biệt chuẩn xác giữa `Max_value` vs `Argmax` (và `Min_value` vs `Argmin`):**
 
   * Chọn `Max_value` / `Min_value`: Khi câu hỏi hỏi **CON SỐ GIÁ TRỊ LỚN NHẤT/NHỎ NHẤT là bao nhiêu**. (VD: *"Tốc độ tăng cao nhất là **bao nhiêu %**?"* $\rightarrow$ Đáp án: `8.02%`).
   * Chọn `Argmax` / `Argmin`: Khi câu hỏi hỏi **NHÃN / NĂM / ĐỐI TƯỢNG NÀO đạt đỉnh/đáy**. (VD: *"**Năm nào** có tốc độ tăng cao nhất?"* $\rightarrow$ Đáp án: `2022`).
@@ -310,7 +332,7 @@ Sau khi toàn bộ batch đạt trạng thái `Passed (L1)` hoặc `Passed_L2_QC
 python scratch/read_excel_to_json.py
 ```
 
-Script sẽ tự động trích xuất đầy đủ 12 cột ở `2_Charts` (bao gồm `x_axis`, `y_axis`, và `series`), phái sinh `chart_complexity`, phân rã chuỗi nhiều dòng và xuất ra file chuẩn `ViChartQA_Dataset_Sample.json`.
+Script sẽ tự động trích xuất đầy đủ 13 cột ở `2_Charts` (bao gồm `body_text`, `x_axis`, `y_axis`, và `series`), phái sinh `chart_complexity`, phân rã chuỗi nhiều dòng và xuất ra file chuẩn `ViChartQA_Dataset_Sample.json`.
 
 ---
 
