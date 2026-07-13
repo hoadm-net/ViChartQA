@@ -1,166 +1,156 @@
 # 03 — Hướng dẫn gán nhãn
 
-Tài liệu này dành cho annotator (chủ yếu Pod B, Pod C — xem [docs/05](05-timeline-and-roles.md)). Đọc kỹ trước buổi pilot Tuần 1; guideline sẽ được cập nhật thành v2 sau pilot dựa trên các trường hợp gây bất đồng thực tế.
+Dành cho annotator (Pod B, Pod C — xem [docs/05](05-timeline-and-roles.md)). Đọc trước pilot Tuần 1; cập nhật thành v2 sau pilot.
 
 ## Nguyên tắc chung
 
-1. **Câu hỏi phải trả lời được chỉ từ document (title + body_text + chart đi kèm)** — không cần kiến thức nền bên ngoài (trừ nhóm câu hỏi "giả định" được thiết kế có chủ đích, xem bên dưới). Khác bản đầu: giờ "được phép" cần đọc body_text, nhưng **không được phép** cần kiến thức ngoài document.
-2. **Đáp án phải duy nhất và khách quan** — tránh câu hỏi có thể có nhiều cách hiểu dẫn đến nhiều đáp án đều "đúng".
-3. **Ưu tiên câu hỏi tự nhiên** — hình dung một người thật đang đọc báo cáo này sẽ hỏi gì, không viết câu hỏi máy móc kiểu "giá trị tại điểm dữ liệu thứ 3 là bao nhiêu".
-4. **Giữ nguyên thuật ngữ miền** — không đơn giản hoá thuật ngữ kinh tế/khoa học trong câu hỏi; đây là một phần độ khó có chủ đích của bộ dữ liệu.
-5. **Không tự ý gắn nhãn multi-hop** — một câu hỏi chỉ được gán `hop_type != single_chart` nếu khớp đúng định nghĩa ở [Hop-type](#hop-type-phạm-vi-bằng-chứng-mới) bên dưới; nếu bỏ phần body_text đi mà câu hỏi vẫn trả lời được chỉ từ 1 chart, đó là `single_chart`, không phải multi-hop dù văn bản có "liên quan chủ đề".
+1. Câu hỏi phải trả lời được chỉ từ document (title + body_text + chart đi kèm) — không cần kiến thức nền bên ngoài (trừ nhóm "giả định").
+2. Đáp án phải duy nhất và khách quan.
+3. Ưu tiên câu hỏi tự nhiên — hình dung người thật đọc báo cáo sẽ hỏi gì.
+4. Giữ nguyên thuật ngữ miền — không đơn giản hoá thuật ngữ kinh tế/khoa học.
+5. Không tự ý gắn nhãn multi-hop — chỉ gán `hop_type != single_chart` nếu khớp đúng định nghĩa ở [Hop-type](#hop-type-phạm-vi-bằng-chứng-mới); nếu bỏ body_text mà câu hỏi vẫn trả lời được từ 1 chart, đó là `single_chart`.
 
 ## Định nghĩa từng loại câu hỏi
 
-### 1. Truy vấn dữ liệu (data retrieval)
+### 1. Truy vấn dữ liệu (data_retrieval)
 
-Đọc trực tiếp một giá trị hoặc nhãn, không cần suy luận thêm.
+Đọc trực tiếp một giá trị hoặc nhãn.
 
 - ✅ "Tỷ lệ thất nghiệp thanh niên năm 2023 là bao nhiêu?"
-- ❌ "Số liệu năm 2023 là gì?" — mơ hồ, không rõ chuỗi/đại lượng nào nếu chart có nhiều chuỗi.
+- ❌ "Số liệu năm 2023 là gì?" — mơ hồ nếu chart có nhiều chuỗi.
 
 ### 2. Thị giác (visual)
 
-Câu hỏi bắt buộc phải tham chiếu một thuộc tính thị giác (màu sắc, vị trí, kích thước, độ cao) để xác định đối tượng cần đọc — nếu bỏ tham chiếu thị giác đi mà câu hỏi vẫn trả lời được, đây không phải câu hỏi thị giác.
+Bắt buộc tham chiếu thuộc tính thị giác (màu sắc, vị trí, kích thước, độ cao) để xác định đối tượng.
 
 - ✅ "Cột màu cam cao nhất nằm ở năm nào?"
 - ✅ "Đường màu xanh lá nằm phía trên hay dưới đường màu xám vào năm 2022?"
-- ❌ "Giá trị cao nhất là bao nhiêu?" — không cần tham chiếu thị giác, đây là truy vấn dữ liệu (loại 1) hoặc suy luận kết hợp (loại 3, nếu cần so sánh nhiều giá trị).
+- ❌ "Giá trị cao nhất là bao nhiêu?" — không tham chiếu thị giác, thuộc loại 1 hoặc 3.
 
 ### 3. Suy luận kết hợp (compositional)
 
-Yêu cầu ít nhất **hai** phép toán số học/logic: cộng, trừ, nhân, chia, phần trăm, trung bình, so sánh, đếm điều kiện.
+≥2 phép toán số học/logic: cộng, trừ, nhân, chia, phần trăm, trung bình, so sánh, đếm điều kiện.
 
-- ✅ "Tổng kim ngạch xuất khẩu của ba năm gần nhất là bao nhiêu?" (cộng 3 giá trị)
-- ✅ "Lạm phát năm nào cao hơn mức trung bình giai đoạn 2019–2023?" (tính trung bình rồi so sánh)
-- ❌ "Lạm phát năm 2023 cao hơn năm 2022 bao nhiêu?" — chỉ một phép trừ, **vẫn tính là compositional** vì ChartQA gốc coi hiệu số là phép toán hợp lệ tối thiểu cho loại này; nhưng ưu tiên viết thêm biến thể có ≥2 bước tính khi có thể để tăng độ khó trung bình của tập.
+- ✅ "Tổng kim ngạch xuất khẩu của ba năm gần nhất là bao nhiêu?"
+- ✅ "Lạm phát năm nào cao hơn mức trung bình giai đoạn 2019–2023?"
+- ❌ (vẫn hợp lệ) "Lạm phát năm 2023 cao hơn năm 2022 bao nhiêu?" — 1 phép trừ vẫn tính compositional; ưu tiên viết thêm biến thể ≥2 bước khi có thể.
 
-### 4. Thị giác + suy luận
+### 4. Thị giác + suy luận (visual_compositional)
 
-Kết hợp cả hai: trước tiên phải xác định đối tượng bằng đặc điểm thị giác, sau đó thực hiện phép toán.
+Xác định đối tượng bằng đặc điểm thị giác trước, rồi thực hiện phép toán.
 
 - ✅ "Trong các năm có cột màu xanh lá, năm nào có chênh lệch lớn nhất so với năm liền trước?"
 - ✅ "Đường nào (theo màu) có độ dốc tăng mạnh nhất giữa hai mốc đầu và cuối?"
 
 ### 5. Mở rộng (kiểu ChartQAPro)
 
-| Loại | Định nghĩa | Ví dụ |
+| `question_type` | Định nghĩa | Ví dụ |
 |---|---|---|
-| Trắc nghiệm | Câu hỏi kèm 4 lựa chọn, chỉ 1 đúng; các lựa chọn sai phải "gần đúng" (số liệu lân cận, dễ nhầm) để có ý nghĩa kiểm tra | "Năm nào có tăng trưởng GDP cao nhất? A. 2021 B. 2022 C. 2023 D. 2024" |
-| Giả định | Đặt một điều kiện/xu hướng ngoài dữ liệu quan sát được, yêu cầu ước lượng có căn cứ | "Nếu xu hướng 2020–2024 tiếp diễn, giá trị năm 2027 gần nhất là bao nhiêu?" |
-| Fact-checking | Đưa ra một phát biểu, yêu cầu xác nhận đúng/sai dựa trên chart | "Đúng hay sai: chi tiêu R&D luôn tăng liên tục trong giai đoạn quan sát?" |
-| Hội thoại nhiều lượt | 2–3 câu hỏi nối tiếp, câu sau phụ thuộc ngữ cảnh câu trước | Lượt 1: "Năm nào GDP tăng cao nhất?" → Lượt 2: "Vậy năm đó cao hơn năm liền trước bao nhiêu?" |
-| Không trả lời được | Câu hỏi liên quan chủ đề chart nhưng **không thể** trả lời chỉ từ ảnh — dùng để kiểm tra mô hình có "bịa" đáp án hay không | "Nguyên nhân khiến lạm phát tăng đột biến năm 2023 là gì?" (chart không có thông tin nguyên nhân) |
+| `multiple_choice` | 4 lựa chọn (`choices`), 1 đúng; lựa chọn sai phải "gần đúng" | "Năm nào có tăng trưởng GDP cao nhất? A. 2021 B. 2022 C. 2023 D. 2024" |
+| `hypothetical` | Giả định ngoài dữ liệu quan sát được | "Nếu xu hướng 2020–2024 tiếp diễn, giá trị năm 2027 gần nhất là bao nhiêu?" |
+| `fact_check` | Xác nhận đúng/sai một phát biểu | "Đúng hay sai: chi tiêu R&D luôn tăng liên tục trong giai đoạn quan sát?" |
+| `unanswerable` | Không trả lời được từ document | "Nguyên nhân khiến lạm phát tăng đột biến năm 2023 là gì?" |
 
-**Lưu ý riêng cho loại "không trả lời được":** đáp án chuẩn ghi là `"unanswerable"`, không được để trống. Không lạm dụng loại này quá 5–7% tổng số câu hỏi — mục đích là kiểm tra, không phải làm khó annotator vòng xác minh.
+Hội thoại nhiều lượt: câu sau set `follow_up_of` trỏ tới id câu trước, `question_type` khai theo bản chất suy luận của câu đó. Ví dụ: Lượt 1 (`id: q1`, `data_retrieval`) "Năm nào GDP tăng cao nhất?" → Lượt 2 (`follow_up_of: q1`, `compositional`) "Vậy năm đó cao hơn năm liền trước bao nhiêu?".
+
+`unanswerable`: đáp án ghi `"unanswerable"`, không để trống. Không quá 5–7% tổng số câu hỏi.
 
 ## Hop-type (phạm vi bằng chứng, mới)
 
-Đây là **chiều nhãn thứ hai**, độc lập với 5 loại suy luận ở trên — mọi câu hỏi phải có cả `question_type` (1 trong 5 loại trên) lẫn `hop_type` (1 trong 4 loại dưới đây). Đây là phần quan trọng nhất để claim "multi-hop" của dự án đứng vững trước reviewer, nên annotator cần đọc kỹ và tự kiểm tra bằng **phép thử bỏ text**: xoá body_text đi, nếu câu hỏi vẫn trả lời được đầy đủ từ (các) chart, đó là `single_chart`, dù nội dung có "liên quan" tới văn bản.
+Chiều nhãn thứ hai, độc lập với `question_type` — mọi câu hỏi có cả hai. Kiểm tra bằng phép thử bỏ text: xoá body_text, nếu câu hỏi vẫn trả lời được đầy đủ từ chart, đó là `single_chart`.
 
 ### 1. `single_chart`
 
-Trả lời được chỉ từ 1 chart, không cần đọc body_text.
-
-- ✅ "Vốn FDI năm 2020 là bao nhiêu?" (đọc thẳng 1 chart)
-- ❌ Gắn nhãn `text_to_chart` cho câu này chỉ vì body_text "cũng có nhắc năm 2020" — nếu số liệu đã có sẵn trên chart, không tính là hop qua text.
+- ✅ "Vốn FDI năm 2020 là bao nhiêu?"
+- ❌ Gắn `text_to_chart` chỉ vì body_text "cũng nhắc năm 2020" khi số liệu đã có sẵn trên chart.
 
 ### 2. `text_to_chart`
 
-Hop 1 lấy một claim/số liệu **chỉ tồn tại trong body_text**, không xuất hiện trên bất kỳ chart nào; hop 2 đối chiếu hoặc tính toán với chart.
+Hop 1 lấy claim/số liệu chỉ tồn tại trong body_text; hop 2 đối chiếu/tính toán với chart.
 
-- ✅ "Bài viết nêu dự báo tăng trưởng theo ADB cho năm 2022 — so với giá trị GDP năm 2021 trên Hình 1, mức tăng tuyệt đối dự kiến là bao nhiêu?" (dự báo ADB chỉ có trong text)
-- ❌ "GDP năm 2021 là bao nhiêu, theo đoạn văn mở đầu?" — nếu số liệu này cũng vẽ sẵn trên chart, đây thực chất là `single_chart` được diễn đạt lại qua text, không phải hop thật.
+- ✅ "Bài viết nêu dự báo tăng trưởng theo ADB cho năm 2022 — so với GDP năm 2021 trên Hình 1, mức tăng tuyệt đối dự kiến là bao nhiêu?"
+- ❌ "GDP năm 2021 là bao nhiêu, theo đoạn văn mở đầu?" — nếu số liệu cũng có trên chart, đây là `single_chart`.
 
 ### 3. `chart_to_chart`
 
-Cần ≥2 chart trong cùng document; body_text đóng vai trò cầu nối cho biết chart nào liên quan đến chart nào (ví dụ nêu rõ hai chỉ tiêu cùng so sánh, hoặc cùng giai đoạn thời gian).
+≥2 chart trong cùng document; body_text là cầu nối.
 
 - ✅ "Trong giai đoạn 2011–2021, chỉ tiêu nào tăng nhanh hơn: GDP (Hình 1) hay kim ngạch xuất nhập khẩu (Hình 3)?"
-- ❌ Hai chart hoàn toàn không liên quan chủ đề, ghép câu hỏi gượng ép chỉ để đạt tỷ trọng multi-hop — loại bỏ ở bước xác minh chéo nếu annotator viết seed cố tình làm vậy.
+- ❌ Hai chart không liên quan chủ đề, ghép câu hỏi gượng ép chỉ để đạt tỷ trọng multi-hop.
 
 ### 4. `fact_check_dual`
 
-Một phát biểu trong document, cần đọc **cả text lẫn chart** để xác minh đúng/sai — nếu chỉ cần chart (hoặc chỉ cần text) là đủ xác minh, không tính loại này.
+Cần đọc cả text lẫn chart để xác minh đúng/sai.
 
-- ✅ "Đúng hay sai: vốn FDI tăng liên tục suốt 2011–2021?" — text mở đầu chỉ nói chung chung "biến động", phải nhìn chart mới thấy có giảm ở 2012 và 2020.
-- ❌ "Đúng hay sai: bài viết nói GDP tăng gấp 3 lần?" — nếu chỉ cần đọc câu trong text, không cần nhìn chart để xác minh, đây là câu hỏi đọc hiểu văn bản thuần, không thuộc phạm vi dataset này.
+- ✅ "Đúng hay sai: vốn FDI tăng liên tục suốt 2011–2021?" — text chỉ nói "biến động", chart mới cho thấy giảm ở 2012, 2020.
+- ❌ "Đúng hay sai: bài viết nói GDP tăng gấp 3 lần?" — chỉ cần đọc text, không thuộc phạm vi dataset.
 
-**Trường `evidence` bắt buộc với mọi câu `hop_type != single_chart`** (định dạng chi tiết + lý do ở [docs/02](02-dataset-design.md#định-dạng-evidence--tham-chiếu-bằng-label-không-mô-tả-tự-do)) — không viết mô tả tự do, chỉ trỏ vào dữ liệu **đã có sẵn**:
+`evidence` bắt buộc với mọi câu `hop_type != single_chart`, trỏ vào dữ liệu đã có sẵn:
 
-- Hop từ chart: điền đúng `series` (tên chuỗi/legend như trên chart) + `x` (nhãn trục x như trên chart) — lấy nguyên văn từ `data_table` đã nhập ở Bước 0, không tự diễn giải.
-- Hop từ text: `quote` là đoạn trích nguyên văn ngắn copy trực tiếp từ body_text (không paraphrase).
+- Hop từ chart: `series` + `x` lấy nguyên văn từ `data_table` đã nhập ở Bước 0.
+- Hop từ text: `quote` là đoạn trích nguyên văn ngắn từ body_text.
 
-Thiếu evidence hoặc evidence không khớp `data_table`/`body_text` = câu hỏi bị trả về sửa ở bước xác minh chéo, không được tính hoàn thành.
+Thiếu evidence hoặc evidence không khớp `data_table`/`body_text` = trả về sửa ở bước xác minh chéo.
 
 ## Quy tắc viết đáp án
 
-- **Đáp án số:** giữ nguyên đơn vị và định dạng xuất hiện trên chart (ví dụ `6.2%` chứ không viết lại thành `0.062`), trừ khi câu hỏi yêu cầu đơn vị khác một cách tường minh.
-- **Dung sai khi đánh giá tự động:** áp dụng "relaxed accuracy" như ChartQA gốc — đáp án số được coi là đúng nếu nằm trong 5% giá trị đúng, để chấp nhận sai số nhỏ trong OCR/trích xuất. Annotator vẫn phải ghi đáp án chính xác tuyệt đối, dung sai chỉ áp dụng ở bước đánh giá mô hình (xem [docs/04](04-model-strategy.md)).
-- **Đáp án không phải số:** cần khớp chính xác (exact match) sau khi chuẩn hoá chính tả/khoảng trắng.
-- **`derivation` (bắt buộc có điều kiện):** với mọi câu có `answer_type: numeric` **và** `question_type` là `compositional` hoặc `thị giác + suy luận` có bước tính toán — ghi công thức số học thuần (vd. `"8.4 - 2.5"`, `"(14740 + 1910)/2"`), dùng đúng số đã có trong `data_table`/evidence, không viết lại bằng lời. Câu `truy vấn dữ liệu`/`thị giác` thuần (đọc thẳng, không tính toán) để `derivation` rỗng — **không áp dụng theo tỷ lệ %, áp dụng theo loại câu hỏi**, tránh annotator phải tự đoán câu này có "tính" hay không. Xem ví dụ ở [docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất). Lý do thêm trường này: cho phép Pod C auto-check kết quả tính toán trước khi xác minh chéo thủ công (giảm lỗi số học sớm), và tận dụng lại được cho hướng RLVR ở [docs/04](04-model-strategy.md#hướng-mở-rộng-nếu-còn-thời-gian-tuần-7-trở-đi--sau-dự-án) nếu nhóm mở rộng — không tốn thêm công annotate vì annotator vốn đã tính ra đáp án trong đầu, chỉ cần ghi lại phép tính đó thay vì giấu đi.
+- Đáp án số: giữ nguyên đơn vị/định dạng trên chart (vd `6.2%`, không viết `0.062`).
+- Dung sai đánh giá tự động: relaxed accuracy trong 5%. Annotator vẫn ghi đáp án chính xác tuyệt đối.
+- Đáp án không phải số: exact match sau chuẩn hoá.
+- `derivation` (bắt buộc có điều kiện): với `answer_type: numeric` và `question_type` là `compositional`/`visual_compositional` có tính toán — công thức số học thuần dùng đúng số trong `data_table`/evidence (vd. `"8.4 - 2.5"`, `"(14740 + 1910)/2"`). Các loại khác để trống. Xem ví dụ ở [docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất).
 
-## Quy trình 5 bước (chi tiết)
+## Quy trình 5 bước
 
 ### Bước 0 — Đọc document
 
-Mỗi annotator nhận một batch document (title + body_text + 1–3 chart). Với mỗi document:
-
-1. Đọc title + body_text trước khi nhìn kỹ chart — gạch chân/ghi chú những số liệu hoặc claim **chỉ xuất hiện trong text**, không vẽ trên chart nào. Đây là nguyên liệu bắt buộc cho câu hỏi `text_to_chart`/`fact_check_dual` ở bước sau.
-2. Với từng chart: xác định loại (bar/line/pie), độ phức tạp (simple/complex), nhập bảng dữ liệu gốc vào công cụ annotation (xem schema ở [docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất)).
+1. Đọc title + body_text trước, ghi chú số liệu/claim chỉ xuất hiện trong text (nguyên liệu cho `text_to_chart`/`fact_check_dual`).
+2. Với từng chart: xác định loại (bar/line/pie), độ phức tạp (simple/complex), nhập `data_table` vào công cụ ([docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất)).
 
 ### Bước 1 — Seed thủ công
 
-Viết 2–3 câu hỏi seed theo cả 2 chiều taxonomy, đảm bảo tối thiểu:
+2-3 câu hỏi seed theo cả 2 chiều taxonomy, tối thiểu:
 
-- 1 câu `single_chart` (compositional hoặc thị giác+suy luận — phần khó của chiều 1).
-- 1 câu multi-hop (`text_to_chart`, `chart_to_chart`, hoặc `fact_check_dual`) dùng đúng nguyên liệu đã ghi chú ở Bước 0, kèm `evidence` đầy đủ.
-
-VLM ở bước 2 sẽ mở rộng thêm các tổ hợp taxonomy còn thiếu.
+- 1 câu `single_chart` (compositional hoặc visual_compositional).
+- 1 câu multi-hop (`text_to_chart`/`chart_to_chart`/`fact_check_dual`) dùng nguyên liệu từ Bước 0, kèm `evidence` đầy đủ.
 
 ### Bước 2 — Mở rộng bằng VLM
 
-Vận hành bởi Pod B: đưa seed question + title + body_text + bảng dữ liệu của từng chart vào prompt cho GPT-4o/Gemini/Qwen2.5-VL, yêu cầu sinh 4–6 câu hỏi ứng viên **rải đều theo cả 2 chiều taxonomy còn thiếu** cho document đó (đặc biệt các hop-type multi-hop và nhóm mở rộng — trắc nghiệm, giả định, fact-check). Yêu cầu mô hình tự đề xuất `evidence` cho câu multi-hop — annotator ở bước 3 sẽ kiểm tra lại, không tin tưởng tuyệt đối.
+Đưa seed + title + body_text + data_table vào prompt cho GPT-4o/Gemini/Qwen2.5-VL, sinh 4-6 câu ứng viên rải đều theo cả 2 chiều còn thiếu. Yêu cầu mô hình tự đề xuất `evidence` — annotator ở Bước 3 kiểm tra lại, không tin tưởng tuyệt đối.
 
 ### Bước 3 — Lọc & xác minh chéo
 
-Một annotator **khác** người viết seed (không nhìn đáp án gốc) đọc lại toàn bộ document rồi trả lời toàn bộ câu hỏi ứng viên từ bước 2 cộng seed từ bước 1:
+Người khác (không nhìn đáp án gốc) đọc cả document, trả lời toàn bộ câu hỏi:
 
-- Nếu đáp án khớp (exact match hoặc trong dung sai 5% với số) **và** evidence tự viết trùng khớp với evidence gốc (với câu multi-hop) → giữ, đánh dấu `verified`.
-- Nếu không khớp → đối chiếu thủ công: lỗi ở người viết seed, lỗi ở người xác minh, hay câu hỏi bản chất mơ hồ? Sửa hoặc loại theo kết quả đối chiếu.
-- Loại bỏ câu hỏi không thể trả lời từ document (trừ nhóm "không trả lời được" cố ý), và loại/hạ cấp về `single_chart` bất kỳ câu nào gắn nhãn multi-hop nhưng qua được phép thử bỏ text ở [Hop-type](#hop-type-phạm-vi-bằng-chứng-mới).
+- Khớp (exact match hoặc dung sai 5%; evidence trùng khớp với multi-hop) → `verified`.
+- Không khớp → đối chiếu thủ công, sửa hoặc loại.
+- Loại câu hỏi không trả lời được từ document (trừ `unanswerable` cố ý); hạ cấp về `single_chart` câu nào không qua được phép thử bỏ text.
 
 ### Bước 4 — Kiểm tra IAA trên mẫu
 
-Pod C rút mẫu ngẫu nhiên 300–500 câu mỗi đợt (khoảng 1 tuần annotation), tính tỷ lệ đồng thuận theo 2 cách, **tách riêng theo hop-type**:
+300-500 câu/đợt, tách riêng theo hop-type:
 
-- **Exact match nghiêm ngặt** — mốc tham chiếu: ChartQA gốc đạt 61.04% (đo trên câu single-chart, chỉ dùng làm tham chiếu gần đúng cho slice `single_chart`).
-- **Có tính đến biến thể chính tả/lexical** (vd `"6,2%"` vs `"6.2 phần trăm"`) — mốc tham chiếu: ChartQA gốc đạt 78.55% khi tính theo cách này.
-- **Với multi-hop:** ngoài đáp án, đo thêm tỷ lệ evidence trùng khớp giữa 2 annotator — dự kiến thấp hơn slice `single_chart`, đây là hiện tượng bình thường (đúng như MultiHiertt/HotpotQA cũng gặp), không phải dấu hiệu guideline sai, nhưng cần Pod C theo dõi xu hướng qua từng đợt để phát hiện sớm nếu tụt dốc bất thường.
+- Exact match nghiêm ngặt — mốc tham chiếu: ChartQA gốc 61.04%.
+- Có dung sai lexical (vd `"6,2%"` vs `"6.2 phần trăm"`) — mốc: ChartQA gốc 78.55%.
+- Multi-hop: đo thêm tỷ lệ evidence trùng khớp giữa 2 annotator (dự kiến thấp hơn single_chart, theo dõi xu hướng qua từng đợt).
 
-Nếu tỷ lệ đồng thuận thấp hơn đáng kể so với các mốc trên, dừng annotation hàng loạt, họp Pod B+C rà lại các trường hợp bất đồng, cập nhật guideline (ghi rõ thay đổi trong changelog cuối file này) trước khi tiếp tục.
+Nếu đồng thuận thấp hơn đáng kể, dừng annotation hàng loạt, họp Pod B+C rà lại, cập nhật guideline.
 
 ## Cơ chế phân xử (adjudication)
 
-Khi Bước 3 phát hiện bất đồng không tự giải quyết được bằng đối chiếu 2 người:
-
 1. Đưa case lên leader Pod C.
-2. Leader quyết định theo thứ tự ưu tiên: (a) đối chiếu lại với bảng dữ liệu gốc, (b) nếu chart mơ hồ thật sự → loại câu hỏi, (c) nếu do lỗi diễn đạt câu hỏi → sửa câu hỏi, giữ đáp án.
-3. Ghi lại case + quyết định vào log adjudication dùng chung — dùng để cập nhật guideline định kỳ, tránh lặp lại cùng một loại lỗi.
+2. Quyết định theo thứ tự: (a) đối chiếu bảng dữ liệu gốc, (b) chart mơ hồ thật → loại câu hỏi, (c) lỗi diễn đạt → sửa câu hỏi, giữ đáp án.
+3. Ghi log adjudication dùng chung để cập nhật guideline.
 
 ## Checklist nhanh trước khi nộp một batch
 
-- [ ] Mỗi document có đủ tỷ trọng taxonomy theo mục tiêu ở [docs/02](02-dataset-design.md#taxonomy-câu-hỏi) — cả chiều loại suy luận lẫn chiều hop-type (≥1 câu multi-hop/document)
-- [ ] Mọi câu `hop_type != single_chart` đã qua phép thử bỏ text và có `evidence` đầy đủ
-- [ ] Mọi câu `answer_type: numeric` thuộc `compositional`/`thị giác + suy luận` có `derivation`, khớp với số trong `data_table`
-- [ ] Không có câu hỏi trùng lặp ý nghĩa trong cùng một document
-- [ ] Đáp án số giữ đúng định dạng/đơn vị xuất hiện trên chart
-- [ ] Câu hỏi "không trả lời được" có đáp án `"unanswerable"`, không để trống
-- [ ] Bảng dữ liệu gốc đã nhập đầy đủ cho mọi chart trong batch
+- [ ] Mỗi document đủ tỷ trọng taxonomy (cả 2 chiều, ≥1 câu multi-hop/document)
+- [ ] Mọi câu `hop_type != single_chart` qua phép thử bỏ text và có `evidence` đầy đủ
+- [ ] Mọi câu `answer_type: numeric` thuộc compositional/visual_compositional có `derivation`, khớp `data_table`
+- [ ] Không có câu hỏi trùng lặp ý nghĩa trong cùng document
+- [ ] Đáp án số giữ đúng định dạng/đơn vị trên chart
+- [ ] Câu "không trả lời được" có đáp án `"unanswerable"`
+- [ ] `data_table` đã nhập đầy đủ cho mọi chart trong batch
 
 ---
 
-**Changelog guideline**
-
-- v1 — Tuần 1 (bản khởi tạo, dùng cho pilot 50 chart)
-- v2 — *(cập nhật sau pilot, điền khi có)*
+**Changelog guideline:** v1 — Tuần 1 (bản khởi tạo). v2 — cập nhật sau pilot.
