@@ -19,12 +19,12 @@
 
 ## Nguồn dữ liệu
 
-| Miền | Nguồn đề xuất | Lưu ý pháp lý |
-|---|---|---|
-| Kinh tế | Tổng cục Thống kê (gso.gov.vn, consosukien.vn), Ngân hàng Nhà nước, Bộ Tài chính, ấn bản tiếng Việt World Bank/IMF | Dữ liệu/ấn phẩm nhà nước — rủi ro bản quyền thấp, cần trích dẫn nguồn đầy đủ |
-| Kinh tế | VnEconomy, CafeF, Vietnam Report, báo cáo thường niên doanh nghiệp niêm yết | Cần rà soát điều khoản sử dụng cả text lẫn hình ảnh; cân nhắc tự vẽ lại chart từ số liệu công bố nếu ảnh gốc có bản quyền |
-| Khoa học/khác | Báo cáo thường niên Bộ KH&CN, NASATI, báo cáo môi trường quốc gia, EVN/Bộ Công thương, Bộ Y tế | Ấn phẩm công, thường cho phép phi thương mại — vẫn nên xin phép bằng văn bản |
-| Khoa học/khác (dự phòng) | Tia Sáng, Khoa học & Phát triển | Cần liên hệ toà soạn xin phép trước khi crawl số lượng lớn; xác nhận số lượng bài đủ multi-chart trước khi coi là nguồn chính |
+| Miền                                                   | Nguồn đề xuất                                                                                                                                    | Lưu ý pháp lý                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kinh tế (neo, đã xác nhận)                         | Tổng cục Thống kê (gso.gov.vn, consosukien.vn), Ngân hàng Nhà nước, Bộ Tài chính, ấn bản tiếng Việt World Bank/IMF                   | Dữ liệu/ấn phẩm nhà nước — rủi ro bản quyền thấp, cần trích dẫn nguồn đầy đủ                                                                                                                                                                                                                                             |
+| Kinh tế (neo, đã xác nhận)                         | VnEconomy, CafeF (thể loại "bức tranh kinh tế" định kỳ), Vietnam Report, báo cáo thường niên doanh nghiệp niêm yết                    | Cần rà soát điều khoản sử dụng lại**cả text lẫn hình ảnh** cùng lúc (khác bản đầu chỉ tính riêng ảnh) — vì giờ lấy nguyên bài, không tách chart ra dùng riêng; cân nhắc tự vẽ lại chart từ số liệu công bố nếu ảnh gốc có bản quyền rõ ràng nhưng text vẫn trích dẫn có nguồn |
+| Khoa học/khác (thử nghiệm, cần xác nhận Tuần 1) | Báo cáo thường niên Bộ KH&CN, NASATI, báo cáo môi trường quốc gia, EVN/Bộ Công thương (năng lượng), Bộ Y tế (y tế công cộng) | Ấn phẩm công phục vụ học thuật, thường cho phép phi thương mại — vẫn nên xin phép bằng văn bản, lưu lại làm bằng chứng                                                                                                                                                                                              |
+| Khoa học/khác (dự phòng, rủi ro nguồn cung)       | Tia Sáng, Khoa học & Phát triển và tạp chí phổ biến khoa học khác                                                                         | Cần liên hệ toà soạn xin phép sử dụng cho nghiên cứu trước khi crawl số lượng lớn;**lưu ý:** kiểm tra sơ bộ 11/07 cho thấy nguồn này có thể ít bài đủ multi-chart hơn kỳ vọng — xác nhận số lượng thực tế trước khi coi là nguồn chính                                                   |
 
 **Data Statement:** mỗi nguồn ghi rõ điều khoản sử dụng, ngày truy cập, phạm vi cho phép — cho cả text lẫn ảnh. Chuẩn bị từ Tuần 1 (theo dõi ở tài liệu riêng, không phải field trong tool — công cụ không lưu license per-document).
 
@@ -38,25 +38,24 @@ Hai chiều độc lập, mỗi câu hỏi gán nhãn cả hai.
 
 `question_type`, enum 8 giá trị lá:
 
-| Nhóm | `question_type` | Mô tả | Ví dụ | Tỷ trọng mục tiêu |
-|---|---|---|---|---|
-| Truy vấn dữ liệu | `data_retrieval` | Đọc trực tiếp một giá trị/nhãn | "Tỷ lệ lạm phát năm 2024 là bao nhiêu?" | ~15% |
-| Thị giác | `visual` | Tham chiếu màu sắc, vị trí, kích thước | "Cột màu xanh lam cao nhất nằm ở năm nào?" | ~15% |
-| Suy luận kết hợp | `compositional` | ≥2 phép toán số học/logic | "Chênh lệch tăng trưởng GDP giữa quý 1 và quý 3 là bao nhiêu điểm %?" | ~30% |
-| Thị giác + suy luận | `visual_compositional` | Kết hợp cả hai | "Trong các năm có cột màu xanh lá, năm nào chênh lệch với năm liền trước là lớn nhất?" | ~20% |
-| Mở rộng | `multiple_choice` | Trắc nghiệm 4 đáp án (`choices`) | "Năm nào tăng trưởng GDP cao nhất? A. 2021 B. 2022 C. 2023 D. 2024" | ~20% (gộp 4 loại) |
-| Mở rộng | `hypothetical` | Giả định ngoài dữ liệu quan sát được | "Nếu xu hướng tiếp diễn, giá trị năm 2027 gần nhất là bao nhiêu?" | nt. |
-| Mở rộng | `fact_check` | Kiểm tra đúng/sai một phát biểu | "Đúng hay sai: doanh thu quý 4 luôn cao nhất năm?" | nt. |
-| Mở rộng | `unanswerable` | Không trả lời được từ document | "Nguyên nhân lạm phát tăng đột biến là gì?" | nt. |
+| Nhóm                               | Mô tả                                                                                                                                                                                                         | Ví dụ                                                                                                                                   | Tỷ trọng mục tiêu |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| Truy vấn dữ liệu                 | Đọc trực tiếp một giá trị/nhãn, không cần tính toán                                                                                                                                                 | "Tỷ lệ lạm phát năm 2024 là bao nhiêu?"                                                                                            | ~15%                  |
+| Thị giác                          | Tham chiếu màu sắc, vị trí, kích thước đối tượng trên chart                                                                                                                                        | "Cột màu xanh lam cao nhất nằm ở năm nào?"                                                                                         | ~15%                  |
+| Suy luận kết hợp (compositional) | ≥2 phép toán số học/logic: tổng, hiệu, %, trung bình, so sánh                                                                                                                                          | "Chênh lệch tăng trưởng GDP giữa quý 1 và quý 3 là bao nhiêu điểm %?"                                                        | ~30%                  |
+| Thị giác + suy luận              | Kết hợp cả hai nhóm trên trong cùng một câu hỏi                                                                                                                                                        | "Trong các năm có cột màu xanh lá, năm nào chênh lệch với năm liền trước là lớn nhất?"                                  | ~20%                  |
+| Mở rộng (kiểu ChartQAPro)        | Trắc nghiệm 4 đáp án, giả định ngoài dữ liệu quan sát được, kiểm tra đúng/sai một phát biểu (fact-check), hội thoại nhiều lượt, câu hỏi**không trả lời được** từ chart | "Nếu xu hướng tiếp diễn, giá trị năm 2027 gần nhất là bao nhiêu?" · "Đúng hay sai: doanh thu quý 4 luôn cao nhất năm?" | ~20%                  |
 
 ### Chiều 2 — phạm vi bằng chứng / hop-type (mới, claim chính của dự án)
 
-| Hop-type | Mô tả | Ví dụ |
-|---|---|---|
-| `single_chart` | Trả lời được chỉ từ 1 chart | "Vốn FDI năm 2020 là bao nhiêu?" |
-| `text_to_chart` | Hop 1 lấy claim/số liệu chỉ có trong body_text, hop 2 đối chiếu/tính toán với chart | "Bài viết nêu dự báo ADB cho 2022 — so với GDP 2021 trên Hình 1, mức tăng tuyệt đối dự kiến là bao nhiêu?" |
-| `chart_to_chart` | ≥2 chart, body_text là cầu nối | "Trong 2011–2021, chỉ tiêu nào tăng nhanh hơn: GDP (Hình 1) hay kim ngạch xuất nhập khẩu (Hình 3)?" |
-| `fact_check_dual` | Cần cả text lẫn chart để xác minh đúng/sai | "Đúng hay sai: vốn FDI tăng liên tục suốt 2011–2021?" |
+Chỉ được gán `multi_hop = true` nếu câu hỏi khớp một trong ba dạng sau — không tự suy diễn, tránh gắn nhãn "multi-hop" cho câu thực chất chỉ cần 1 chart (xem hướng dẫn chi tiết + ví dụ tốt/xấu ở [docs/03](03-annotation-guidelines.md)):
+
+| Hop-type            | Mô tả                                                                                                 | Ví dụ (dựa trên bài CafeF "Trend 10 năm với kinh tế Việt Nam")                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `single_chart`    | Trả lời được chỉ từ 1 chart, không cần body_text                                               | "Vốn FDI năm 2020 là bao nhiêu?" (đọc thẳng Hình 2)                                                                                                  |
+| `text_to_chart`   | Hop 1 lấy claim/số liệu**chỉ có trong body_text**, hop 2 đối chiếu/tính toán với chart | "Bài viết nêu dự báo ADB cho 2022 — so với giá trị GDP 2021 trên Hình 1, mức tăng tuyệt đối dự kiến là bao nhiêu?"                       |
+| `chart_to_chart`  | ≥2 chart trong cùng document, body_text là cầu nối cho biết chart nào liên quan chart nào      | "Trong 2011–2021, chỉ tiêu nào tăng nhanh hơn: GDP (Hình 1) hay kim ngạch xuất nhập khẩu (Hình 3)?"                                              |
+| `fact_check_dual` | Một phát biểu trong bài, cần cả text lẫn chart để xác minh đúng/sai                         | "Đúng hay sai: vốn FDI tăng liên tục suốt 2011–2021?" (text mở đầu nói chung chung "biến động", chart mới cho thấy có giảm ở 2012, 2020) |
 
 Ngưỡng mục tiêu: ≥50% câu hỏi test set thuộc 3 loại multi-hop (neo theo mốc 48.74% của MultiHiertt — [docs/01](01-related-work.md#4b-dòng-multi-hop-qa-trên-dữ-liệu-có-cấu-trúc-text--tablechart)). Phần còn lại là `single_chart`, dùng để so sánh trực tiếp với ChartQA/ChartQAPro.
 
@@ -72,18 +71,18 @@ Quy trình đầy đủ ở [docs/03](03-annotation-guidelines.md).
 
 ## Quy mô mục tiêu
 
-| | Document | Chart (ước tính, 1–3/document) | Câu hỏi |
-|---|---|---|---|
-| **MVP** | 1.200 | ~1.800–3.000 | 6.000 |
-| **Mở rộng** | 2.000 | ~3.000 | ~15.000 |
+|                             | Document | Chart (ước tính, 1–3/document) | Câu hỏi      |
+| --------------------------- | -------- | ---------------------------------- | -------------- |
+| **MVP (tối thiểu)** | 1.200    | ~1.800–3.000                      | 6.000          |
+| **Mở rộng**         | 2.000    | ~3.000–5.000                      | 10.000–12.000 |
 
 Nhóm so sánh (multi-hop text+structured-data):
 
-| Dataset | Quy mô |
-|---|---|
-| TAT-QA | 2.757 context / 16.552 QA |
-| MultiHiertt | 2.513 document / 10.440 QA |
-| SlideVQA | 2.600 deck / 14.500 QA |
+| Dataset     | Quy mô                                      | So với MVP ViChartQA                                                                       |
+| ----------- | -------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| TAT-QA      | 2.757 context / 16.552 QA, từ 182 báo cáo | Lớn hơn, nhưng 1 context = 1 bảng+đoạn văn ngắn, không phải document nhiều chart |
+| MultiHiertt | 2.513 document / 10.440 QA                   | Cùng cấp độ document count                                                              |
+| SlideVQA    | 2.600 deck / 14.500 QA                       | Cùng cấp độ, gần nhất về setup (nhiều ảnh/document)                                |
 
 MVP 1.200 document/6.000 QA cùng bậc quy mô với nhóm này. ChartQAPro (1.341/1.948) và ViInfographicVQA (6.747/20.409) là mốc tham khảo phụ cho slice `single_chart`. Ưu tiên đạt MVP với chất lượng cao hơn cố quy mô mở rộng mà giảm chất lượng.
 
@@ -93,13 +92,13 @@ Tỷ lệ ~77%/10%/13% (như ChartQA gốc), chia theo document (không theo câ
 
 ## Schema dữ liệu đề xuất
 
-Đơn vị lưu trữ là **document**: một title + body_text (toàn văn, có placeholder `[CHART N]`) + 1–3 chart, mang nhiều câu hỏi (mảng `qa`). Mỗi câu hỏi tự khai báo `hop_type` và `evidence`.
+Đơn vị lưu trữ là **document**: một title + mảng `charts` (mỗi chart đi kèm `body_text` riêng chứa ngữ cảnh liên quan trực tiếp đến biểu đồ đó) + mảng câu hỏi (`qa`). Mỗi câu hỏi tự khai báo `hop_type` và `evidence`.
 
 ```json
 {
   "id": "vichartqa_econ_00123",
   "title": "Trend 10 năm với kinh tế Việt Nam: Nền kinh tế đã trưởng thành hơn ra sao?",
-  "body_text": "Nhìn chung GDP trong 10 năm qua tăng dần theo thời gian. [CHART 1] Bên cạnh đó, dòng vốn FDI và kim ngạch xuất nhập khẩu cũng ghi nhận xu hướng tích cực dù có biến động ở một số năm. [CHART 2]",
+>>>>>>> Stashed changes
   "source": {
     "provider": "CafeF",
     "domain": "economics",
@@ -107,8 +106,24 @@ Tỷ lệ ~77%/10%/13% (như ChartQA gốc), chia theo document (không theo câ
     "accessed_date": "2026-07-20"
   },
   "charts": [
+<<<<<<< Updated upstream
     { "chart_id": "fig1", "image": "images/a3f5c1d8e2b04f91.png", "chart_type": "line", "chart_complexity": "simple" },
     { "chart_id": "fig2", "image": "images/9b1e7a04cc3d5f22.png", "chart_type": "subplot", "chart_complexity": "complex" }
+=======
+    {
+      "chart_id": "fig1",
+      "image": "images/econ/cafef_trend10nam_00123_fig1.png",
+      "chart_type": "line",
+      "chart_complexity": "simple",
+      "topic": "GDP 2011-2021",
+      "body_text": "Nhìn chung GDP trong 10 năm qua tăng dần theo thời gian, giai đoạn 2011-2021 đạt quy mô vượt trội...",
+      "data_table": {
+        "x_axis": ["2011", "2012", "...", "2021"],
+        "series": { "GDP (triệu tỷ đồng)": [2.5, "...", 8.4] }
+      }
+    },
+    { "chart_id": "fig2", "image": "images/econ/cafef_trend10nam_00123_fig2.png", "chart_type": "line", "topic": "FDI 2011-2021", "body_text": "Vốn FDI thực hiện biến động mạnh qua các năm, đặc biệt sụt giảm vào năm 2012 và 2020 do ảnh hưởng ngoại cảnh...", "data_table": { "...": "..." } },
+    { "chart_id": "fig3", "image": "images/econ/cafef_trend10nam_00123_fig3.png", "chart_type": "line", "topic": "Xuất nhập khẩu 2011-2021", "body_text": "Kim ngạch xuất nhập khẩu liên tục bứt phá và mở rộng quy mô với tốc độ tăng trưởng nhanh hơn GDP...", "data_table": { "...": "..." } }
   ],
   "qa": [
     {
