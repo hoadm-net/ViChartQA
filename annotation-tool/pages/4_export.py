@@ -1,4 +1,4 @@
-"""Export dataset cuối Tuần 5 (data freeze) — xem docs/02 §Schema, docs/08 §4.
+"""Export dataset cuối kỳ (data freeze) — xem docs/02 §Schema.
 Chỉ lấy câu hỏi status active, gán split theo document (không theo câu hỏi).
 """
 

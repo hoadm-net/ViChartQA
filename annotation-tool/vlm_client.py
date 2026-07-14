@@ -1,4 +1,4 @@
-"""Gọi LLM qua OpenRouter để sinh câu hỏi gợi ý (xem docs/03, docs/08).
+"""Gọi LLM qua OpenRouter để sinh câu hỏi gợi ý (xem docs/03).
 
 Trả về list[dict] khớp field của Question/Evidence — chỉ mang tính tham khảo, không
 tự lưu vào DB; annotator phải tự soạn/sửa lại qua form ở pages/2_question_workspace.py.
@@ -16,8 +16,8 @@ SYSTEM_PROMPT = """Bạn là annotator sinh câu hỏi cho bộ dữ liệu ViCh
 multi-hop reasoning trên text + chart). Nhiệm vụ: đọc 1 document (title + body_text + danh sách chart
 kèm loại biểu đồ), sinh thêm các câu hỏi ứng viên rải đều theo 2 chiều taxonomy sau, KHÔNG trùng các câu đã có.
 
-Chiều 1 — question_type (8 giá trị): {question_types}
-Chiều 2 — hop_type (4 giá trị): {hop_types}
+Chiều 1 — question_type ({n_question_types} giá trị): {question_types}
+Chiều 2 — hop_type ({n_hop_types} giá trị): {hop_types}
   - single_chart: trả lời được chỉ từ 1 chart.
   - text_to_chart: 1 claim/số liệu CHỈ có trong body_text, đối chiếu/tính toán với chart.
   - chart_to_chart: cần ≥2 chart, body_text là cầu nối.
@@ -33,7 +33,12 @@ Với mỗi câu hỏi trả về JSON object:
 }}
 
 Chỉ trả về JSON: {{"questions": [...]}}. Không thêm giải thích ngoài JSON.
-""".format(question_types=QUESTION_TYPES, hop_types=HOP_TYPES)
+""".format(
+    question_types=QUESTION_TYPES,
+    hop_types=HOP_TYPES,
+    n_question_types=len(QUESTION_TYPES),
+    n_hop_types=len(HOP_TYPES),
+)
 
 
 def _build_user_prompt(title: str, body_text: str, charts: list[dict], seed_questions: list[str], n: int) -> str:

@@ -1,5 +1,5 @@
 """Simple session-based login. No external auth service — 10-15 accounts
-created by hand via scripts/seed_users.py (see docs/08 §5).
+created by hand via scripts/seed_users.py.
 """
 
 from __future__ import annotations

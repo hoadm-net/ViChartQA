@@ -1,6 +1,6 @@
 # ViChartQA Annotation Tool
 
-Streamlit + SQLite, theo thiết kế ở [../docs/08-annotation-tool-design.md](../docs/08-annotation-tool-design.md). Không dùng Label Studio — lý do và kiến trúc đầy đủ nằm trong doc đó.
+Streamlit + SQLite — công cụ nội bộ để nạp document và soạn câu hỏi cho bộ dữ liệu ViChartQA.
 
 ## Cài đặt
 
@@ -26,14 +26,39 @@ python scripts/seed_users.py # tạo tài khoản — SỬA DANH SÁCH USERS tro
 streamlit run app.py
 ```
 
-Mặc định chạy ở `localhost:8501`. Deploy thật (Tuần 1, xem [docs/05](../docs/05-timeline-and-roles.md)) chạy trên server/VPS sẵn có của nhóm, sau reverse proxy — chi tiết ở docs/08 §5.
+Mặc định chạy ở `localhost:8501`. Deploy thật chạy trên server/VPS sẵn có của nhóm, sau reverse proxy (Nginx/Caddy) — SQLite chỉ chịu được 1 tiến trình Streamlit ghi cùng lúc, backup định kỳ bằng `sqlite3 data/vichartqa.db ".backup vichartqa-$(date +%F).db"`.
+
+## Hướng dẫn sử dụng
+
+### 1. Nhập document
+
+Title + toàn văn body_text (chèn `[CHART N]` đúng vị trí từng chart xuất hiện trong bài) + tối đa 3 ảnh chart — ảnh tự đặt tên theo hash, preview ngay khi upload. Điền nguồn (provider/domain/url) — ngày truy cập tự động = hôm nay.
+
+### 2. Soạn câu hỏi
+
+Trang duy nhất sau khi nhập xong document:
+
+- Chọn document, xem lại title/body_text/ảnh chart.
+- **Gợi ý bằng LLM** (tuỳ chọn): chọn model + số câu, bấm sinh — kết quả chỉ hiển thị tham khảo, **không tự lưu**. Bấm "Dùng làm mẫu" để nạp vào form bên dưới; vẫn phải tự rà lại từng field và bấm Lưu mới thực sự tạo câu hỏi.
+- **Form soạn câu hỏi**: câu hỏi, đáp án (+ đáp án tương đương tuỳ chọn), `question_type`/`hop_type`, evidence builder (nguồn chart → chọn ảnh + gõ tay `series`/`x`, có preview ảnh ngay tại chỗ; nguồn text → dán quote nguyên văn từ body_text), `derivation` (bắt buộc khi đáp án là số và thuộc `compositional`/`visual_compositional`). Evidence bắt buộc cho **mọi** câu hỏi — thiếu hoặc quote không khớp nguyên văn sẽ bị chặn lưu.
+- **Câu hỏi đã có**: nút Sửa (nạp lại vào form, lưu thành version mới), Bỏ (rút, chuyển status `rejected`), xem lịch sử chỉnh sửa (`question_versions`).
+- Cảnh báo nếu document chưa đủ tối thiểu 1 câu `single_chart` + 1 câu multi-hop.
+
+### 3. Dashboard
+
+Theo dõi tiến độ: document/câu hỏi theo status, tỷ trọng `question_type`/`hop_type` thực tế so với mục tiêu, năng suất theo người dùng.
+
+### 4. Export
+
+Gán split train/val/test theo document (không theo câu hỏi, tránh leakage), xuất file JSON theo schema ở [docs/02](../docs/02-dataset-design.md#schema-dữ-liệu-đề-xuất) — chỉ lấy câu hỏi `status=active`.
 
 ## Cấu trúc
 
 ```
 app.py              # entry point, đăng nhập + st.navigation
 db.py                # engine SQLite (WAL + busy_timeout), init_db()
-models.py             # SQLAlchemy ORM — 6 bảng, khớp docs/08 §3.1
+models.py             # SQLAlchemy ORM — 6 bảng (documents, charts, questions, evidence,
+                        # question_versions, users)
 constants.py           # enum dùng chung (question_type, hop_type, status...)
 validation.py            # logic thuần Python: evidence không rỗng + quote khớp body_text,
                             # eval derivation — KHÔNG import streamlit, test độc lập được
@@ -44,10 +69,10 @@ vlm_client.py                    # gọi model qua OpenRouter, parse response th
 export.py                          # build JSON dataset cuối + gán train/val/test split
 auth.py                              # session login (bcrypt), không dùng dịch vụ ngoài
 pages/
-  1_document_intake.py                 # nạp document (Pod A)
-  2_question_workspace.py                # gợi ý LLM + soạn/sửa câu hỏi (Pod B)
+  1_document_intake.py                 # nạp document
+  2_question_workspace.py                # gợi ý LLM + soạn/sửa câu hỏi
   3_dashboard.py                           # tiến độ, taxonomy, năng suất
-  4_export.py                                # export dataset cuối Tuần 5
+  4_export.py                                # export dataset
 scripts/seed_users.py                          # tạo tài khoản (chạy 1 lần, sửa USERS trước)
 tests/
   test_validation.py    # unit test cho validation.py
@@ -70,9 +95,9 @@ Không có `pytest` trong requirements — mỗi file test tự chạy được 
 
 ## Trạng thái hiện tại
 
-Đã xong đủ 4 trang theo thiết kế (nhập document → soạn câu hỏi → dashboard → export), có test cho từng trang. Không còn bước xác minh chéo/phân xử — thay bằng version history (`question_versions`) ghi lại mỗi lần tạo/sửa/rút câu hỏi. Việc còn lại trước khi dùng cho pilot Tuần 1 thật:
+Đã xong đủ 4 trang (nhập document → soạn câu hỏi → dashboard → export), có test cho từng trang. Không có bước xác minh chéo/phân xử — thay bằng version history (`question_versions`) ghi lại mỗi lần tạo/sửa/rút câu hỏi. Việc còn lại trước khi dùng cho pilot thật:
 
-- [ ] Điền danh sách 10 người thật vào `scripts/seed_users.py` (đang là placeholder `pod_a_1`, `pod_b_1`...)
+- [ ] Điền danh sách người thật vào `scripts/seed_users.py` (đang là placeholder `pod_a_1`, `pod_b_1`...)
 - [ ] Điền API key thật vào `.streamlit/secrets.toml`, thử gọi thật cả 3 model VLM (chưa test được trong môi trường dev vì không có key)
-- [ ] Deploy lên server/VPS thật + cấu hình backup cron (`sqlite3 ... .backup`) — xem docs/08 §5
-- [ ] Chạy thử với 1-2 document thật (không phải dữ liệu test) để annotator góp ý UI trước khi bắt đầu pilot 50 document
+- [ ] Deploy lên server/VPS thật + cấu hình backup cron
+- [ ] Chạy thử với 1-2 document thật (không phải dữ liệu test) để annotator góp ý UI trước khi bắt đầu pilot diện rộng

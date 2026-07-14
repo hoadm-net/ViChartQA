@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM models. Table shapes match docs/08-annotation-tool-design.md §3.1.
+"""SQLAlchemy ORM models.
 
 `choices` and `x` use the generic JSON type so the same code works against SQLite
 (stored as TEXT) or Postgres (JSONB) if ever migrated.

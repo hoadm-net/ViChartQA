@@ -15,7 +15,7 @@
 
 **Khoa học và miền khác (giáo dục, y tế, môi trường, năng lượng, xã hội) là miền mở rộng** — ưu tiên báo cáo thường niên chính phủ (Bộ KH&CN, NASATI, báo cáo môi trường quốc gia, EVN/Bộ Công thương, Bộ Y tế) hơn báo phổ biến khoa học (Tia Sáng nghiêng bài chính sách/bình luận, ít data-journalism). Tỷ trọng domain do nguồn cung quyết định.
 
-**Tuần 1 (Pod A):** lấy mẫu ~30-50 document/domain, đếm tỷ lệ đạt tiêu chí (≥1 đoạn văn bình luận trực tiếp vào số liệu chart) trước khi chốt tỷ trọng domain — xem [docs/05 Tuần 1](05-timeline-and-roles.md#tuần-1-1420-07--setup--pilot).
+**Trước khi crawl diện rộng:** lấy mẫu ~30-50 document/domain, đếm tỷ lệ đạt tiêu chí (≥1 đoạn văn bình luận trực tiếp vào số liệu chart) trước khi chốt tỷ trọng domain.
 
 ## Nguồn dữ liệu
 
@@ -36,7 +36,7 @@ Hai chiều độc lập, mỗi câu hỏi gán nhãn cả hai.
 
 ### Chiều 1 — loại suy luận
 
-`question_type`, enum 8 giá trị lá:
+`question_type`, enum 7 giá trị lá:
 
 | Nhóm | `question_type` | Mô tả | Ví dụ | Tỷ trọng mục tiêu |
 |---|---|---|---|---|
@@ -44,8 +44,7 @@ Hai chiều độc lập, mỗi câu hỏi gán nhãn cả hai.
 | Thị giác | `visual` | Tham chiếu màu sắc, vị trí, kích thước | "Cột màu xanh lam cao nhất nằm ở năm nào?" | ~15% |
 | Suy luận kết hợp | `compositional` | ≥2 phép toán số học/logic | "Chênh lệch tăng trưởng GDP giữa quý 1 và quý 3 là bao nhiêu điểm %?" | ~30% |
 | Thị giác + suy luận | `visual_compositional` | Kết hợp cả hai | "Trong các năm có cột màu xanh lá, năm nào chênh lệch với năm liền trước là lớn nhất?" | ~20% |
-| Mở rộng | `multiple_choice` | Trắc nghiệm 4 đáp án (`choices`) | "Năm nào tăng trưởng GDP cao nhất? A. 2021 B. 2022 C. 2023 D. 2024" | ~20% (gộp 4 loại) |
-| Mở rộng | `hypothetical` | Giả định ngoài dữ liệu quan sát được | "Nếu xu hướng tiếp diễn, giá trị năm 2027 gần nhất là bao nhiêu?" | nt. |
+| Mở rộng | `multiple_choice` | Trắc nghiệm 4 đáp án (`choices`) | "Năm nào tăng trưởng GDP cao nhất? A. 2021 B. 2022 C. 2023 D. 2024" | ~20% (gộp 3 loại) |
 | Mở rộng | `fact_check` | Kiểm tra đúng/sai một phát biểu | "Đúng hay sai: doanh thu quý 4 luôn cao nhất năm?" | nt. |
 | Mở rộng | `unanswerable` | Không trả lời được từ document | "Nguyên nhân lạm phát tăng đột biến là gì?" | nt. |
 
@@ -168,6 +167,6 @@ Trường `chart_complexity` (`simple`/`complex`): quan sát trực quan trên �
 - `source: "chart"` → `{chart_id, series, x}` — `series` (tên chuỗi/đường/cột) và `x` (nhãn/giá trị trục x) do annotator gõ tay trực tiếp khi soạn câu hỏi, mô tả đúng cái họ đang nhìn trên ảnh. Không có bảng dữ liệu gốc để đối chiếu tự động — chỉ kiểm tra `chart_id` có tồn tại trong document và `series`/`x` không để trống.
 - `source: "text"` → `{quote}`, đoạn trích nguyên văn ngắn từ `body_text` — vẫn auto-check được (phải khớp chuỗi con nguyên văn trong `body_text`).
 
-## Việc cần chốt trước khi crawl (Tuần 1)
+## Việc cần chốt trước khi crawl
 
-Xem checklist đầy đủ ở README và [docs/05](05-timeline-and-roles.md#tuần-1). Không crawl hàng loạt trước khi có xác nhận pháp lý cho từng nguồn.
+Không crawl hàng loạt trước khi có xác nhận pháp lý cho từng nguồn.

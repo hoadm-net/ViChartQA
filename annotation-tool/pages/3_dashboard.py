@@ -1,7 +1,7 @@
-"""Dashboard tiến độ — xem docs/08 §4.
+"""Dashboard tiến độ.
 
 Số document/câu hỏi theo status, tỷ trọng taxonomy thực tế vs mục tiêu, năng suất
-theo annotator/pod. Không còn số liệu xác minh chéo (đã bỏ cơ chế này — xem
+theo người dùng. Không còn số liệu xác minh chéo (đã bỏ cơ chế này — xem
 question_versions cho lịch sử tạo/sửa từng câu hỏi thay thế).
 """
 
@@ -22,10 +22,9 @@ QUESTION_TYPE_TARGETS = {
     "visual": 0.15,
     "compositional": 0.30,
     "visual_compositional": 0.20,
-    "multiple_choice": 0.05,
-    "hypothetical": 0.05,
-    "fact_check": 0.05,
-    "unanswerable": 0.05,
+    "multiple_choice": 0.07,
+    "fact_check": 0.07,
+    "unanswerable": 0.06,
 }
 
 with get_session() as session:
