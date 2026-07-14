@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+*.db
+*.db-wal
+*.db-shm
+data/images/*
+!data/images/.gitkeep
+.streamlit/secrets.toml
+backups/

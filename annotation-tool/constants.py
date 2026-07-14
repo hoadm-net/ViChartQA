@@ -1,0 +1,61 @@
+"""Enum values shared by models.py, validation.py, and the Streamlit pages.
+Source of truth: docs/02-dataset-design.md (taxonomy) and docs/08-annotation-tool-design.md (workflow states).
+"""
+
+QUESTION_TYPES = [
+    "data_retrieval",
+    "visual",
+    "compositional",
+    "visual_compositional",
+    "multiple_choice",
+    "hypothetical",
+    "fact_check",
+    "unanswerable",
+]
+
+# question_type values that require a `derivation` formula when answer_type == "numeric"
+DERIVATION_REQUIRED_TYPES = {"compositional", "visual_compositional"}
+
+HOP_TYPES = ["single_chart", "text_to_chart", "chart_to_chart", "fact_check_dual"]
+MULTI_HOP_TYPES = {"text_to_chart", "chart_to_chart", "fact_check_dual"}
+
+ANSWER_TYPES = ["numeric", "text", "unanswerable", "boolean"]
+
+# "subplot" = 1 ảnh ghép nhiều panel khác loại chart (vd pie + bar cạnh nhau) — không
+# tách chart_id riêng cho từng panel (ảnh không có nhãn (a)/(b) để phân biệt, model đọc
+# ảnh cũng không biết đâu là đâu), coi cả ảnh là 1 chart entry, type="subplot".
+CHART_TYPES = ["bar", "line", "pie", "stacked_bar", "grouped_bar", "multi_line", "subplot"]
+CHART_COMPLEXITY = ["simple", "complex"]
+
+MAX_BODY_TEXT_WORDS = 2000  # xem docs/02 §Phạm vi
+
+# Kinh tế = neo (nguồn dồi dào), còn lại là miền mở rộng — xem docs/02 §Miền dữ liệu
+DOMAINS = ["economics", "science", "education", "health", "environment", "energy", "society"]
+
+EVIDENCE_SOURCES = ["chart", "text"]
+
+DOCUMENT_STATUSES = ["intake", "in_progress"]
+
+# Không có "llm_suggested": gợi ý LLM chỉ tồn tại tạm thời trong session, không lưu vào
+# bảng questions — chỉ khi annotator tự soạn/sửa qua form và bấm Lưu mới tạo Question,
+# nên Question luôn bắt đầu ở active. "rejected" dùng khi rút lại 1 câu đã lưu.
+QUESTION_STATUSES = ["active", "rejected"]
+
+QUESTION_VERSION_CHANGE_TYPES = ["created", "edited", "rejected"]
+
+PODS = ["A", "B", "C", "D", "E"]
+ROLES = ["annotator", "pm", "data_intake"]
+
+SPLITS = ["train", "val", "test"]
+
+# Tất cả model gọi qua OpenRouter (1 API key, 1 SDK OpenAI-compatible) — slug xác nhận
+# trực tiếp qua https://openrouter.ai/api/v1/models ngày 13/07/2026 (đều hỗ trợ
+# response_format/structured_outputs, cần cho JSON output của generate_candidates()).
+VLM_MODEL_SLUGS = {
+    "gpt-5.4-nano": "openai/gpt-5.4-nano",
+    "gemini-3.1-flash-lite": "google/gemini-3.1-flash-lite",
+    "qwen3-vl-235b": "qwen/qwen3-vl-235b-a22b-instruct",
+}
+VLM_MODELS = list(VLM_MODEL_SLUGS.keys())
+
+RELAXED_ACCURACY_TOLERANCE = 0.05  # 5%, per docs/03 Quy tắc viết đáp án
