@@ -8,7 +8,7 @@
 |---|---|---|
 | **A — Nguồn dữ liệu & pháp lý** | 2 | Thu thập document (title + content + 1–3 chart), kiểm tra giấy phép text+ảnh, chuẩn hoá metadata, mẫu kiểm tra nguồn cung theo domain |
 | **B — Câu hỏi & annotation pipeline** | 3 | Đọc document, viết seed (2 chiều taxonomy), vận hành VLM-assisted expansion, duy trì guideline |
-| **C — Kiểm soát chất lượng & IAA** | 2 | Xác minh chéo, đo đồng thuận, phân xử bất đồng, dọn test set |
+| **C — Kiểm soát chất lượng** | 2 | Rà soát/sửa câu hỏi đã soạn (không phải bước xác minh chéo riêng — dùng chung trang Soạn câu hỏi), dọn test set, Data Statement |
 | **D — Modeling & đánh giá** | 2 | Eval harness, baseline zero-shot, fine-tune backbone, ablation, error analysis |
 | **E — Hạ tầng, viết bài & PM** | 1 | Công cụ annotation, theo dõi tiến độ, dataset card, bản thảo & gói công bố |
 
@@ -20,16 +20,16 @@ Pod A/C có thể chuyển hỗ trợ Pod D ở Tuần 6. Pod E trọng tâm ở
 
 - **Pod A:** chốt nguồn ưu tiên, gửi xin phép nguồn cần xác nhận (Tia Sáng, KH&PT, báo kinh tế tư nhân — cả text lẫn ảnh), crawl thử nguồn rủi ro thấp (GSO/consosukien.vn). Lấy mẫu ~30–50 document/domain, đếm tỷ lệ đạt tiêu chí document-grounded ([docs/02](02-dataset-design.md#miền-dữ-liệu)) để chốt tỷ trọng domain cuối tuần.
 - **Pod B:** hoàn thiện guideline v1 ([docs/03](03-annotation-guidelines.md)), viết seed cho pilot 50 document.
-- **Pod C:** thiết lập quy trình xác minh chéo + form log adjudication, gồm kiểm tra `evidence` cho câu multi-hop.
+- **Pod C:** làm quen công cụ, thử rà/sửa câu hỏi qua trang Soạn câu hỏi ([docs/08](08-annotation-tool-design.md#42-soạn-câu-hỏi-pod-b--trang-duy-nhất-sau-intake)), kiểm tra `evidence` cho câu multi-hop.
 - **Pod D:** dựng eval harness cho baseline VLM; xác nhận khả năng multi-image của Vintern-3B ([docs/04](04-model-strategy.md#backbone-đề-xuất)).
 - **Pod E:** chọn & dựng công cụ annotation (hỗ trợ nhiều ảnh + văn bản dài + evidence), theo dõi tiến độ chung.
-- **Cột mốc:** pilot 50 document / ~150–250 câu hỏi qua đủ 5 bước. Tính lại tốc độ annotation thực tế sau pilot (multi-hop tốn công hơn single-chart) — có thể ảnh hưởng mục tiêu MVP Tuần 4.
+- **Cột mốc:** pilot 50 document / ~150–250 câu hỏi qua đủ quy trình soạn câu hỏi ([docs/03](03-annotation-guidelines.md#quy-trình)). Tính lại tốc độ annotation thực tế sau pilot (multi-hop tốn công hơn single-chart) — có thể ảnh hưởng mục tiêu MVP Tuần 4.
 
 ### Tuần 2 (21–27/07) — Hiệu chỉnh & crawl diện rộng
 
 - **Pod A:** crawl chính, đạt ~60–70% mục tiêu document.
 - **Pod B:** rà pilot, chốt guideline v2, bắt đầu annotation hàng loạt.
-- **Pod C:** đo IAA trên pilot, đối chiếu mốc tham chiếu ([docs/03](03-annotation-guidelines.md#bước-4--kiểm-tra-iaa-trên-mẫu)).
+- **Pod C:** rà pilot cùng Pod B, tổng hợp lỗi phổ biến góp ý guideline v2.
 - **Pod D:** chạy baseline zero-shot trên pilot set.
 - **Cột mốc:** guideline v2 chốt, annotation hàng loạt bắt đầu.
 
@@ -44,7 +44,7 @@ Pod A/C có thể chuyển hỗ trợ Pod D ở Tuần 6. Pod E trọng tâm ở
 ### Tuần 4 (04–10/08) — Annotation sprint đợt 2
 
 - **Pod B:** tiếp tục sprint, ưu tiên nhóm taxonomy còn thiếu.
-- **Pod C:** QC vòng 2 + IAA subset thứ hai, hoàn thiện Data Statement.
+- **Pod C:** QC vòng 2, hoàn thiện Data Statement.
 - **Pod D:** tổng hợp baseline zero-shot, phân tích khoảng cách theo domain/loại câu hỏi.
 - **Cột mốc:** MVP (1.200 document / 6.000 câu hỏi, ≥50% multi-hop — [docs/02](02-dataset-design.md#quy-mô-mục-tiêu)); nếu tốc độ thấp hơn ước tính, giữ ngưỡng multi-hop và chất lượng, hạ số document.
 

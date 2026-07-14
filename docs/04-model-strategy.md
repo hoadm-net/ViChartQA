@@ -29,9 +29,7 @@ Tuần 3-4, song song annotation:
 ## Fine-tuning
 
 - LoRA/QLoRA trên train set — giữ nguyên vision encoder, fine-tune connector + LLM decoder (hoặc full LoRA tuỳ compute).
-- Multi-task phụ trợ (tuỳ chọn): chart-to-table extraction như loss phụ, tận dụng `data_table` sẵn có.
 - Ablation bắt buộc:
-  - Có/không multi-task chart-to-table.
   - Theo domain thực tế đạt được.
   - Theo `question_type` (8 giá trị) — xác định nhóm khó nhất.
   - Theo `hop_type` — `single_chart` vs `text_to_chart`/`chart_to_chart`/`fact_check_dual`, bằng chứng số liệu cho claim "multi-hop khó hơn chart-only".

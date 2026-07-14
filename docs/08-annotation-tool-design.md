@@ -1,42 +1,37 @@
 # 08 — Thiết kế công cụ gán nhãn
 
-Dựa trên schema/quy trình ở [docs/02](02-dataset-design.md) và [docs/03](03-annotation-guidelines.md) (đơn vị = document: title + body_text + 1-3 chart, taxonomy 2 chiều, evidence trỏ vào `data_table`/`body_text`).
+Dựa trên schema/quy trình ở [docs/02](02-dataset-design.md) và [docs/03](03-annotation-guidelines.md) (đơn vị = document: title + body_text + 1-3 chart, taxonomy 2 chiều, evidence chart tự do do annotator gõ tay, evidence text trỏ vào `body_text`).
 
-Đã chốt: tự host trên server/VPS sẵn có, Streamlit + SQLite; taxonomy "Mở rộng" tách enum riêng + `follow_up_of`; quản lý dự án trực tiếp build.
+Đã chốt: tự host trên server/VPS sẵn có, Streamlit + SQLite; taxonomy "Mở rộng" tách enum riêng; quản lý dự án trực tiếp build.
 
 ## 1. Yêu cầu chức năng
 
-Label Studio/Argilla/doccano/Prodigy giả định 1 task = 1 input, gán vài nhãn/span. Thiết kế này khác ở 3 điểm: (1) Bước 0 nhập `data_table` phải hoàn tất trước, các bước sau tham chiếu ngược lại (dropdown evidence chỉ hiện giá trị đã có trong `data_table`); (2) 1 document nhiều câu hỏi, mỗi câu có trường điều kiện (`derivation`, `evidence` tuỳ `hop_type`/`answer_type`); (3) xác minh chéo mù có auto-diff quyết định `verified`/`needs_adjudication`.
+Label Studio/Argilla/doccano/Prodigy giả định 1 task = 1 input, gán vài nhãn/span. Thiết kế này khác ở 3 điểm: (1) 1 document nhiều câu hỏi, mỗi câu có trường điều kiện (`derivation`, `evidence` tuỳ `hop_type`/`answer_type`); (2) evidence không có bảng dữ liệu gốc để tra cứu — `series`/`x` là annotator tự gõ mô tả những gì họ nhìn thấy trên chart; (3) không có bước xác minh chéo độc lập — mỗi lần tạo/sửa/rút một câu hỏi ghi thành 1 bản snapshot (`question_versions`) làm audit trail thay thế.
 
 | # | Chức năng | Nguồn |
 |---|---|---|
 | 1 | Nạp document (title, body_text, ảnh 1-3 chart, metadata nguồn) | [docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất) |
-| 2 | Bảng nhập `data_table`/chart (x_axis + series), kèm ảnh chart | Bước 0, [docs/03](03-annotation-guidelines.md#bước-0--đọc-document) |
-| 3 | Form câu hỏi: `question_type` (8 giá trị) × `hop_type` (4 loại) | [docs/02](02-dataset-design.md#taxonomy-câu-hỏi) |
-| 4 | Evidence builder: chart → `series`+`x` (dropdown từ `data_table`); text → dán `quote` | [docs/02](02-dataset-design.md#định-dạng-evidence--tham-chiếu-bằng-label-không-mô-tả-tự-do) |
-| 5 | Auto-check evidence khớp `data_table`/`body_text`, chặn submit nếu không khớp | nt. |
-| 6 | `derivation` hiện có điều kiện, auto-eval và so `answer` (dung sai 5%) | [docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất) |
-| 7 | Nút "Sinh câu hỏi bằng VLM" (GPT-4o/Gemini/Qwen2.5-VL), annotator duyệt từng câu | Bước 2 |
-| 8 | Xác minh chéo mù: verifier không thấy đáp án gốc, hệ thống tự so khớp → `verified`/`needs_adjudication` | Bước 3 |
-| 9 | Phân xử: song song 2 bản, leader Pod C quyết định + ghi log | [docs/03](03-annotation-guidelines.md#cơ-chế-phân-xử-adjudication) |
-| 10 | IAA + đồng thuận (exact/lexical), tách theo `hop_type` | Bước 4 |
-| 11 | Dashboard: trạng thái, tỷ trọng taxonomy thực tế vs mục tiêu, năng suất annotator | [docs/02](02-dataset-design.md#chiều-2--phạm-vi-bằng-chứng--hop-type-mới-claim-chính-của-dự-án) |
-| 12 | Chặn nộp batch nếu thiếu ≥1 `single_chart` + 1 multi-hop/document | [docs/03](03-annotation-guidelines.md#checklist-nhanh-trước-khi-nộp-một-batch) |
-| 13 | Export JSON theo schema, chia theo document | [docs/02](02-dataset-design.md#chia-tập-trainvaltest) |
+| 2 | Form câu hỏi: `question_type` (8 giá trị) × `hop_type` (4 loại) + `equivalent_answers` tuỳ chọn | [docs/02](02-dataset-design.md#taxonomy-câu-hỏi) |
+| 3 | Evidence builder: chart → chọn `chart_id` + gõ tay `series`+`x`; text → dán `quote` | [docs/02](02-dataset-design.md#định-dạng-evidence) |
+| 4 | Auto-check evidence không rỗng + quote khớp `body_text`, chặn submit nếu không đạt — bắt buộc cho mọi câu hỏi | nt. |
+| 5 | `derivation` hiện có điều kiện, auto-eval và so `answer` (dung sai 5%) | [docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất) |
+| 6 | Nút "Sinh gợi ý bằng LLM" — chỉ hiển thị tham khảo, "Dùng làm mẫu" nạp vào form chứ không tự lưu | [docs/03](03-annotation-guidelines.md) |
+| 7 | Sửa/rút câu hỏi bất kỳ lúc nào; mỗi lần tạo/sửa/rút ghi 1 `question_versions` snapshot | mục 3.3 |
+| 8 | Dashboard: trạng thái, tỷ trọng taxonomy thực tế vs mục tiêu, năng suất annotator | [docs/02](02-dataset-design.md#chiều-2--phạm-vi-bằng-chứng--hop-type-mới-claim-chính-của-dự-án) |
+| 9 | Chặn nộp batch nếu thiếu ≥1 `single_chart` + 1 multi-hop/document | [docs/03](03-annotation-guidelines.md#checklist-nhanh-trước-khi-nộp-một-batch) |
+| 10 | Export JSON theo schema, chia theo document | [docs/02](02-dataset-design.md#chia-tập-trainvaltest) |
 
 ## 2. Platform
 
 | Tiêu chí | Label Studio/Argilla | Streamlit | React + API riêng |
 |---|---|---|---|
-| Evidence dropdown động theo `data_table` | Cần Frontend plugin riêng | `st.selectbox` nạp trực tiếp | Cần tự viết component |
-| Bảng nhập `data_table` | Không có primitive phù hợp | `st.data_editor` | Cần thư viện ngoài (AG Grid) |
 | Form điều kiện | Labeling config tĩnh | Python `if` | Được, tốn công hơn |
-| Xác minh mù + auto-diff | Tự viết | Tự viết, thuần Python | Tự viết |
+| Version history/edit log | Tự viết | Tự viết, thuần Python (`versioning.py`) | Tự viết |
 | Tốc độ dựng bản dùng được | Chậm | 2-3 ngày | Chậm hơn Streamlit |
 | Kỹ năng cần | Python + API/plugin LS | Chỉ Python | Cần JS/React |
 | Multi-user, review workflow có sẵn | Có | Không, tự làm | Không |
 
-**Streamlit + SQLite, không dùng Label Studio.** 10 người đã biết Python; `st.data_editor` giải quyết gọn nhập `data_table`; dựng được bản chạy trong 2-3 ngày, kịp pilot cuối Tuần 1.
+**Streamlit + SQLite, không dùng Label Studio.** 10 người đã biết Python; dựng được bản chạy trong 2-3 ngày, kịp pilot cuối Tuần 1.
 
 ## 3. Kiến trúc
 
@@ -44,37 +39,33 @@ Label Studio/Argilla/doccano/Prodigy giả định 1 task = 1 input, gán vài n
 Streamlit (multi-page app, st.navigation)
         │
         ├── page: Nhập document
-        ├── page: Nhập data_table cho chart (Bước 0)
-        ├── page: Viết seed + Evidence builder (Bước 1)
-        ├── page: Sinh & duyệt ứng viên VLM (Bước 2)
-        ├── page: Xác minh chéo mù (Bước 3)
-        ├── page: Phân xử (Adjudication)
-        ├── page: Dashboard IAA & tiến độ
+        ├── page: Soạn câu hỏi (gợi ý LLM + form + lịch sử)
+        ├── page: Dashboard tiến độ
         └── page: Export dataset
         │
    validation.py  (Python thuần, không import Streamlit)
+   versioning.py  (Python thuần — snapshot_question/record_version)
+   question_ui.py (Streamlit — form/evidence-builder dùng chung)
         │
    SQLAlchemy models  ──►  SQLite (1 file .db, WAL mode — mục 3.2)
         │
-   vlm_client.py (GPT-4o/Gemini/Qwen2.5-VL, key qua st.secrets)
+   vlm_client.py (OpenRouter, key qua st.secrets — gợi ý tham khảo, không tự lưu)
 ```
 
-Validation logic (evidence khớp `data_table`, auto-eval `derivation`, kiểm tra tối thiểu taxonomy/document) viết trong `validation.py`, tách khỏi Streamlit — tái dùng được cho script export/làm sạch dữ liệu ở Tuần 5.
+Validation logic (evidence không rỗng + quote khớp `body_text`, auto-eval `derivation`, kiểm tra tối thiểu taxonomy/document) viết trong `validation.py`, tách khỏi Streamlit — tái dùng được cho script export/làm sạch dữ liệu ở Tuần 5.
 
 ### 3.1 Data model
 
 | Bảng | Cột chính | Ghi chú |
 |---|---|---|
-| `documents` | id, title, body_text, source_* (provider/domain/topic/license/url/accessed_date), split, status | `status`: intake → data_table_done → seeded → vlm_expanded → verifying → qc_done → ready_for_split |
-| `charts` | id, document_id (fk), chart_id, image_path, chart_type, chart_complexity, topic, data_table (JSON) | 1-3 dòng/document |
-| `questions` | id, document_id (fk), question_text, answer, answer_type, question_type, hop_type, requires_visual_reference, derivation, follow_up_of (fk questions), choices (JSON), status, generation_method, seed_by (fk user), verified_by (fk user) | `status`: seed → vlm_candidate → pending_verification → verified/needs_adjudication → final/rejected. `question_type`: `data_retrieval`, `visual`, `compositional`, `visual_compositional`, `multiple_choice`, `hypothetical`, `fact_check`, `unanswerable` |
-| `evidence` | id, question_id (fk), hop_order, source (chart/text), chart_id (fk), series, x (JSON array), quote | 0-N dòng/câu hỏi |
-| `verification_attempts` | id, question_id (fk), verifier_id (fk), answer_given, evidence_given (JSON), match (bool) | Dùng tính IAA |
-| `iaa_samples` | id, question_id (fk), round_label, agreement_exact, agreement_lexical, evidence_match | |
-| `adjudications` | id, question_id (fk), issue_note, decision, decided_by (fk), decided_at | |
-| `users` | id, name, pod (A-E), role, password_hash | |
+| `documents` | id, title, body_text, source_* (provider/domain/url/accessed_date), split, status | `status`: intake → in_progress (thuần thông tin, không chặn thao tác nào) |
+| `charts` | id, document_id (fk), chart_id, image_path, chart_type, chart_complexity | 1-3 dòng/document, không có bảng dữ liệu gốc |
+| `questions` | id, document_id (fk), question_text, answer, equivalent_answers (JSON), answer_type, question_type, hop_type, derivation, choices (JSON), status, created_by (fk user) | `status`: active/rejected. `question_type`: `data_retrieval`, `visual`, `compositional`, `visual_compositional`, `multiple_choice`, `hypothetical`, `fact_check`, `unanswerable` |
+| `evidence` | id, question_id (fk), hop_order, source (chart/text), chart_id (fk), series, x (JSON array), quote | 1-N dòng/câu hỏi — bắt buộc với mọi câu. `series`/`x` là text tự do annotator gõ tay khi source=chart |
+| `question_versions` | id, question_id (fk), version_number, snapshot (JSON — toàn bộ question+evidence), change_type (created/edited/rejected), change_note, edited_by (fk user), edited_at | Ghi 1 dòng mỗi lần tạo/sửa/rút — thay cho verification_attempts/adjudications đã bỏ |
+| `users` | id, name, pod (A-E), role, password_hash | `role`: annotator/pm/data_intake |
 
-`data_table` và `choices` dùng kiểu `sqlalchemy.JSON` (không cột TEXT tự parse) — code không phụ thuộc SQLite hay Postgres.
+`choices`, `equivalent_answers`, `x`, `snapshot` dùng kiểu `sqlalchemy.JSON` (không cột TEXT tự parse) — code không phụ thuộc SQLite hay Postgres.
 
 ### 3.2 SQLite
 
@@ -88,67 +79,47 @@ Chỉ 1 tiến trình Streamlit ghi vào file `.db`. Backup: cron hằng ngày `
 ### 3.3 Vòng đời câu hỏi
 
 ```
-seed ──(VLM sinh: vlm_candidate → annotator duyệt)──► pending_verification
-                                                              │
-                                                 verifier trả lời mù
-                                                              │
-                             ┌────────────────────────────────┴───────────────────────┐
-                       answer+evidence khớp                                answer/evidence lệch
-                             │                                                          │
-                         verified                                            needs_adjudication
-                             │                                                          │
-                             └──────────────────► final ◄─────────── adjudicator quyết định ─┘
-                                                                        (hoặc → rejected)
+(gợi ý LLM — tạm thời, chỉ trong session, không phải 1 status)
+         │ "Dùng làm mẫu" nạp vào form, KHÔNG tự lưu
+         ▼
+     [form soạn câu hỏi] ──Lưu──► active ──Bỏ──► rejected
+                                     │
+                                     └──Sửa──► active (bản mới, version_number+1)
 ```
+
+Mỗi lần vào ô "Lưu"/"Sửa"/"Bỏ" ghi 1 dòng `question_versions` (`change_type = created/edited/rejected`) — không sửa/xoá dòng cũ, nên lịch sử đầy đủ luôn xem lại được ngay trên trang.
 
 ## 4. Màn hình theo vai trò
 
-### 4.1 Nhập `data_table` (Bước 0 — Pod B)
+### 4.1 Nhập document (Pod A)
 
-- Trái: ảnh chart (`st.image`, zoom).
-- Phải: `st.data_editor` — `x_axis` + N cột series (thêm/xoá cột = thêm/xoá series). Header cột là tên dùng nguyên văn trong `evidence.series` sau này.
-- Nút lưu → khi đủ 1-3 chart, `documents.status → data_table_done`.
+- Title + toàn văn body_text (`[CHART N]` placeholder) + tối đa 3 ảnh chart, tự đặt tên theo hash + preview.
+- Metadata nguồn (provider/domain/url), ngày truy cập tự động = hôm nay.
 
-### 4.2 Viết seed + Evidence builder (Bước 1 — Pod B)
+### 4.2 Soạn câu hỏi (Pod B) — trang duy nhất sau intake
 
-- Trái (cố định): title + body_text + thumbnail 1-3 chart (click phóng to).
-- Phải: danh sách câu hỏi đã có + form thêm câu mới:
-  - `question_text`, `answer`.
+- Trên: chọn document, xem lại title/body_text/ảnh chart.
+- "Gợi ý câu hỏi bằng LLM": chọn model (qua `vlm_client.py`/OpenRouter) + số câu, bấm sinh. Kết quả chỉ hiển thị tham khảo (không lưu DB); nút "Dùng làm mẫu" nạp nội dung vào form soạn câu hỏi bên dưới, annotator vẫn phải tự rà và bấm Lưu.
+- "Câu hỏi đã có": danh sách câu `active` (+ tuỳ chọn xem `rejected`), mỗi câu có nút Sửa (nạp lại vào form), Bỏ (rút, ghi version `rejected`), và xem lịch sử (`question_versions`).
+- Form soạn câu hỏi (dùng chung cho thêm mới/sửa/nạp từ gợi ý):
+  - `question_text`, `answer`, `equivalent_answers` (tuỳ chọn, nhiều dòng).
   - `answer_type` (numeric/text/unanswerable/boolean); trắc nghiệm suy ra tự động từ `question_type=multiple_choice`.
   - `question_type` (8 giá trị). Chọn `multiple_choice` → hiện 4 ô `choices`.
-  - `follow_up_of` (không bắt buộc) — dropdown câu đã có trong document.
-  - `hop_type` (4 loại) — khác `single_chart` → hiện evidence builder.
-  - Evidence builder: `source` (chart/text); chart → `chart_id` + `series` (dropdown từ `data_table`) + multi-select `x`; text → dán `quote`.
+  - `hop_type` (4 loại).
+  - Evidence builder (bắt buộc cho mọi hop_type): `source` (chart/text); chart → chọn `chart_id` (hiện preview ảnh chart đó ngay tại chỗ, không phải cuộn lên) + gõ tay `series`/`x` (không có bảng dữ liệu gốc để tra) — text → dán `quote`.
   - `derivation`: hiện khi `answer_type=numeric` và `question_type` thuộc {compositional, visual_compositional}. Nút "Kiểm tra" eval công thức, so `answer`, báo ✅/⚠️ (không chặn submit).
-  - Submit → `validation.py`: chặn cứng nếu evidence không khớp; cảnh báo mềm nếu derivation lệch hoặc trùng câu hỏi.
+  - Submit → `validation.py`: chặn cứng nếu evidence thiếu hoặc quote không khớp `body_text`; cảnh báo mềm nếu derivation lệch hoặc trùng câu hỏi. Lưu thành công → `versioning.record_version()` ghi 1 snapshot.
 - Cảnh báo nếu document chưa đủ 1 `single_chart` + 1 multi-hop.
 
-### 4.3 Sinh & duyệt ứng viên VLM (Bước 2 — Pod B)
-
-- Nút "Sinh 4-6 câu ứng viên" — gọi `vlm_client.py` với title+body_text+data_table+seed, chọn model qua dropdown.
-- Kết quả dạng thẻ: Sửa (mở form 4.2, điền sẵn) / Giữ / Bỏ. Evidence do VLM đề xuất phải xác nhận lại qua UI 4.2, không copy thẳng.
-
-### 4.4 Xác minh chéo mù (Bước 3 — Pod C, người khác)
-
-- Giao document + câu hỏi (không kèm đáp án/evidence gốc) cho verifier khác người viết seed.
-- Verifier trả lời + điền evidence qua UI 4.2, không thấy đáp án gốc.
-- Submit → so khớp answer + evidence → `verified`/`needs_adjudication`, hiển thị kết quả ngay (không sửa được).
-
-### 4.5 Phân xử (Pod C leader)
-
-- 2 cột song song (bản gốc vs verify), highlight khác biệt.
-- 3 nút quyết định (giữ gốc/giữ verify/chỉnh sửa) + ô ghi lý do bắt buộc.
-
-### 4.6 Dashboard (Pod C + Pod E)
+### 4.3 Dashboard (PM)
 
 - Document/câu hỏi theo `status`.
-- Tỷ trọng `question_type`/`hop_type` thực tế vs mục tiêu.
-- IAA theo đợt, tách theo `hop_type`.
-- Năng suất theo annotator/pod.
+- Tỷ trọng `question_type`/`hop_type` thực tế (trên câu `active`) vs mục tiêu.
+- Năng suất theo annotator/pod (document nạp, câu hỏi tạo, lượt tạo/sửa theo `question_versions`).
 
-### 4.7 Export
+### 4.4 Export
 
-Script cuối Tuần 5: join `documents`+`charts`+`questions`+`evidence` thành JSON theo [docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất), chỉ lấy `status=final`, gán `split` theo document.
+Script cuối Tuần 5: join `documents`+`charts`+`questions`+`evidence` thành JSON theo [docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất), chỉ lấy `status=active`, gán `split` theo document.
 
 ## 5. Hạ tầng
 
@@ -161,12 +132,12 @@ Script cuối Tuần 5: join `documents`+`charts`+`questions`+`evidence` thành 
 
 ## 6. Khi nào migrate khỏi Streamlit
 
-Chỉ cân nhắc nếu: (a) độ trễ rerun gây khó chịu rõ rệt với 5+ người dùng cùng lúc; (b) cần tương tác Streamlit không hỗ trợ tốt (vd vẽ bounding box lên ảnh — thiết kế hiện tại không cần, evidence là dropdown không phải toạ độ pixel); (c) mở annotation quy mô lớn ngoài nhóm sau dự án.
+Chỉ cân nhắc nếu: (a) độ trễ rerun gây khó chịu rõ rệt với 5+ người dùng cùng lúc; (b) cần tương tác Streamlit không hỗ trợ tốt (vd vẽ bounding box lên ảnh — thiết kế hiện tại không cần, evidence là text tự do không phải toạ độ pixel); (c) mở annotation quy mô lớn ngoài nhóm sau dự án.
 
 ## 7. Trạng thái quyết định
 
 1. Hạ tầng: tự host, SQLite — mục 3.2 và 5.
-2. Taxonomy: `question_type` 8 giá trị lá + `follow_up_of` + `choices` — mục 3.1, 4.2, đồng bộ [docs/02](02-dataset-design.md#taxonomy-câu-hỏi) + [docs/03](03-annotation-guidelines.md#5-mở-rộng-kiểu-chartqapro).
+2. Taxonomy: `question_type` 8 giá trị lá + `choices` — mục 3.1, 4.2, đồng bộ [docs/02](02-dataset-design.md#taxonomy-câu-hỏi) + [docs/03](03-annotation-guidelines.md#5-mở-rộng-kiểu-chartqapro).
 3. Người build: quản lý dự án.
 
 Có thể bắt đầu scaffold code: SQLAlchemy models (3.1), `validation.py`, khung Streamlit multi-page (3).

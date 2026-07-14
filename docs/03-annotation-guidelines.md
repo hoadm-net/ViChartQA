@@ -51,8 +51,6 @@ Xác định đối tượng bằng đặc điểm thị giác trước, rồi t
 | `fact_check` | Xác nhận đúng/sai một phát biểu | "Đúng hay sai: chi tiêu R&D luôn tăng liên tục trong giai đoạn quan sát?" |
 | `unanswerable` | Không trả lời được từ document | "Nguyên nhân khiến lạm phát tăng đột biến năm 2023 là gì?" |
 
-Hội thoại nhiều lượt: câu sau set `follow_up_of` trỏ tới id câu trước, `question_type` khai theo bản chất suy luận của câu đó. Ví dụ: Lượt 1 (`id: q1`, `data_retrieval`) "Năm nào GDP tăng cao nhất?" → Lượt 2 (`follow_up_of: q1`, `compositional`) "Vậy năm đó cao hơn năm liền trước bao nhiêu?".
-
 `unanswerable`: đáp án ghi `"unanswerable"`, không để trống. Không quá 5–7% tổng số câu hỏi.
 
 ## Hop-type (phạm vi bằng chứng, mới)
@@ -85,71 +83,49 @@ Cần đọc cả text lẫn chart để xác minh đúng/sai.
 - ✅ "Đúng hay sai: vốn FDI tăng liên tục suốt 2011–2021?" — text chỉ nói "biến động", chart mới cho thấy giảm ở 2012, 2020.
 - ❌ "Đúng hay sai: bài viết nói GDP tăng gấp 3 lần?" — chỉ cần đọc text, không thuộc phạm vi dataset.
 
-`evidence` bắt buộc với mọi câu `hop_type != single_chart`, trỏ vào dữ liệu đã có sẵn:
+`evidence` bắt buộc với **mọi** câu hỏi, kể cả `single_chart` — không còn bước xác minh
+chéo độc lập nên đây là chốt kiểm chứng duy nhất còn lại:
 
-- Hop từ chart: `series` + `x` lấy nguyên văn từ `data_table` đã nhập ở Bước 0.
-- Hop từ text: `quote` là đoạn trích nguyên văn ngắn từ body_text.
+- Hop từ chart: `series` (tên chuỗi/đường/cột) + `x` (nhãn/giá trị trục x) — annotator gõ tay trực tiếp, mô tả đúng cái đang nhìn trên ảnh; không có bảng dữ liệu gốc để đối chiếu tự động, công cụ chỉ chặn lưu nếu để trống.
+- Hop từ text: `quote` là đoạn trích nguyên văn ngắn từ body_text — công cụ auto-check khớp nguyên văn.
 
-Thiếu evidence hoặc evidence không khớp `data_table`/`body_text` = trả về sửa ở bước xác minh chéo.
+Thiếu evidence (rỗng) hoặc quote không khớp nguyên văn `body_text` = công cụ chặn lưu ngay lúc soạn (xem [docs/08](08-annotation-tool-design.md)).
 
 ## Quy tắc viết đáp án
 
 - Đáp án số: giữ nguyên đơn vị/định dạng trên chart (vd `6.2%`, không viết `0.062`).
 - Dung sai đánh giá tự động: relaxed accuracy trong 5%. Annotator vẫn ghi đáp án chính xác tuyệt đối.
 - Đáp án không phải số: exact match sau chuẩn hoá.
-- `derivation` (bắt buộc có điều kiện): với `answer_type: numeric` và `question_type` là `compositional`/`visual_compositional` có tính toán — công thức số học thuần dùng đúng số trong `data_table`/evidence (vd. `"8.4 - 2.5"`, `"(14740 + 1910)/2"`). Các loại khác để trống. Xem ví dụ ở [docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất).
+- `derivation` (bắt buộc có điều kiện): với `answer_type: numeric` và `question_type` là `compositional`/`visual_compositional` có tính toán — công thức số học thuần dùng đúng số annotator đọc được từ chart (vd. `"8.4 - 2.5"`, `"(14740 + 1910)/2"`). Các loại khác để trống. Xem ví dụ ở [docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất).
+- `equivalent_answers` (tuỳ chọn): các cách diễn đạt khác cũng được chấp nhận cho cùng 1 đáp án (vd đơn vị/cách viết số khác nhau) — không bắt buộc, chỉ điền khi thực sự có biến thể đáng kể.
 
-## Quy trình 5 bước
+## Quy trình
 
-### Bước 0 — Đọc document
+### 1. Đọc document
 
-1. Đọc title + body_text trước, ghi chú số liệu/claim chỉ xuất hiện trong text (nguyên liệu cho `text_to_chart`/`fact_check_dual`).
-2. Với từng chart: xác định loại (bar/line/pie), độ phức tạp (simple/complex), nhập `data_table` vào công cụ ([docs/02](02-dataset-design.md#schema-dữ-liệu-đề-xuất)).
+Đọc title + body_text trước, ghi chú số liệu/claim chỉ xuất hiện trong text (nguyên liệu cho `text_to_chart`/`fact_check_dual`) và quan sát từng chart (loại, độ phức tạp).
 
-### Bước 1 — Seed thủ công
+### 2. Soạn câu hỏi
 
-2-3 câu hỏi seed theo cả 2 chiều taxonomy, tối thiểu:
+Ở trang "Soạn câu hỏi" (xem [docs/08](08-annotation-tool-design.md)): có thể bấm sinh gợi ý bằng LLM để tham khảo (không tự lưu vào dataset — chỉ dùng làm mẫu rồi tự viết/sửa lại), hoặc viết thẳng từ đầu. Mỗi document cần tối thiểu:
 
 - 1 câu `single_chart` (compositional hoặc visual_compositional).
-- 1 câu multi-hop (`text_to_chart`/`chart_to_chart`/`fact_check_dual`) dùng nguyên liệu từ Bước 0, kèm `evidence` đầy đủ.
+- 1 câu multi-hop (`text_to_chart`/`chart_to_chart`/`fact_check_dual`).
 
-### Bước 2 — Mở rộng bằng VLM
+Mọi câu đều cần `evidence` đầy đủ (xem [Hop-type](#hop-type-phạm-vi-bằng-chứng-mới)); công cụ chặn lưu nếu thiếu, hoặc nếu quote text không khớp nguyên văn `body_text`.
 
-Đưa seed + title + body_text + data_table vào prompt cho GPT-4o/Gemini/Qwen2.5-VL, sinh 4-6 câu ứng viên rải đều theo cả 2 chiều còn thiếu. Yêu cầu mô hình tự đề xuất `evidence` — annotator ở Bước 3 kiểm tra lại, không tin tưởng tuyệt đối.
+### 3. Sửa/rút câu hỏi
 
-### Bước 3 — Lọc & xác minh chéo
-
-Người khác (không nhìn đáp án gốc) đọc cả document, trả lời toàn bộ câu hỏi:
-
-- Khớp (exact match hoặc dung sai 5%; evidence trùng khớp với multi-hop) → `verified`.
-- Không khớp → đối chiếu thủ công, sửa hoặc loại.
-- Loại câu hỏi không trả lời được từ document (trừ `unanswerable` cố ý); hạ cấp về `single_chart` câu nào không qua được phép thử bỏ text.
-
-### Bước 4 — Kiểm tra IAA trên mẫu
-
-300-500 câu/đợt, tách riêng theo hop-type:
-
-- Exact match nghiêm ngặt — mốc tham chiếu: ChartQA gốc 61.04%.
-- Có dung sai lexical (vd `"6,2%"` vs `"6.2 phần trăm"`) — mốc: ChartQA gốc 78.55%.
-- Multi-hop: đo thêm tỷ lệ evidence trùng khớp giữa 2 annotator (dự kiến thấp hơn single_chart, theo dõi xu hướng qua từng đợt).
-
-Nếu đồng thuận thấp hơn đáng kể, dừng annotation hàng loạt, họp Pod B+C rà lại, cập nhật guideline.
-
-## Cơ chế phân xử (adjudication)
-
-1. Đưa case lên leader Pod C.
-2. Quyết định theo thứ tự: (a) đối chiếu bảng dữ liệu gốc, (b) chart mơ hồ thật → loại câu hỏi, (c) lỗi diễn đạt → sửa câu hỏi, giữ đáp án.
-3. Ghi log adjudication dùng chung để cập nhật guideline.
+Không có bước xác minh chéo riêng — annotator (hoặc người khác xem lại sau) có thể bấm "Sửa" để chỉnh bất kỳ câu nào đã lưu, hoặc "Bỏ" để rút một câu không đạt. Mỗi lần tạo/sửa/rút đều ghi lại một bản snapshot (question_versions) — xem lịch sử ngay trên trang để biết ai sửa gì lúc nào.
 
 ## Checklist nhanh trước khi nộp một batch
 
 - [ ] Mỗi document đủ tỷ trọng taxonomy (cả 2 chiều, ≥1 câu multi-hop/document)
-- [ ] Mọi câu `hop_type != single_chart` qua phép thử bỏ text và có `evidence` đầy đủ
-- [ ] Mọi câu `answer_type: numeric` thuộc compositional/visual_compositional có `derivation`, khớp `data_table`
+- [ ] Mọi câu hỏi qua phép thử bỏ text đúng hop_type và có `evidence` đầy đủ
+- [ ] Mọi câu `answer_type: numeric` thuộc compositional/visual_compositional có `derivation`, khớp số liệu đọc từ chart
 - [ ] Không có câu hỏi trùng lặp ý nghĩa trong cùng document
 - [ ] Đáp án số giữ đúng định dạng/đơn vị trên chart
 - [ ] Câu "không trả lời được" có đáp án `"unanswerable"`
-- [ ] `data_table` đã nhập đầy đủ cho mọi chart trong batch
 
 ---
 

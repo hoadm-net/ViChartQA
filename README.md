@@ -23,18 +23,19 @@ ViChartQA nhắm lấp khoảng trống: **văn bản + chart cùng lúc** × **
 ```
 .
 ├── README.md                       # tài liệu này
-└── docs/
-    ├── 01-related-work.md          # bối cảnh & rà soát công trình liên quan
-    ├── 02-dataset-design.md        # thiết kế dataset: nguồn, taxonomy câu hỏi, schema
-    ├── 03-annotation-guidelines.md # hướng dẫn gán nhãn chi tiết cho annotator
-    ├── 04-model-strategy.md        # chiến lược mô hình, backbone, đánh giá
-    ├── 05-timeline-and-roles.md    # lịch trình 7 tuần & phân công nhân sự
-    ├── 06-publication-strategy.md  # chiến lược công bố & thời hạn
-    ├── 07-risks.md                 # rủi ro & giảm thiểu
-    └── 08-annotation-tool-design.md # thiết kế công cụ gán nhãn
+├── docs/
+│   ├── 01-related-work.md          # bối cảnh & rà soát công trình liên quan
+│   ├── 02-dataset-design.md        # thiết kế dataset: nguồn, taxonomy câu hỏi, schema
+│   ├── 03-annotation-guidelines.md # hướng dẫn gán nhãn chi tiết cho annotator
+│   ├── 04-model-strategy.md        # chiến lược mô hình, backbone, đánh giá
+│   ├── 05-timeline-and-roles.md    # lịch trình 7 tuần & phân công nhân sự
+│   ├── 06-publication-strategy.md  # chiến lược công bố & thời hạn
+│   ├── 07-risks.md                 # rủi ro & giảm thiểu
+│   └── 08-annotation-tool-design.md # thiết kế công cụ gán nhãn
+└── annotation-tool/                # công cụ gán nhãn (Streamlit + SQLite) — xem annotation-tool/README.md
 ```
 
-*(các thư mục `data/`, `annotation-tool/`, `models/`, `scripts/` sẽ được tạo khi bước vào Tuần 1 — xem [docs/05](docs/05-timeline-and-roles.md))*
+*(các thư mục `data/`, `models/`, `scripts/` cho phần dataset/model sẽ được tạo khi cần, từ Tuần 2 trở đi)*
 
 ## Tóm tắt kế hoạch
 
@@ -45,7 +46,7 @@ ViChartQA nhắm lấp khoảng trống: **văn bản + chart cùng lúc** × **
 | **Đơn vị dữ liệu** | Document: title + body_text + 1–3 chart (không phải chart rời) |
 | **Miền dữ liệu** | Kinh tế (neo) · Khoa học/giáo dục/y tế/môi trường/năng lượng (mở rộng theo nguồn cung) |
 | **Taxonomy câu hỏi** | 2 chiều: loại suy luận (8 giá trị: data_retrieval/visual/compositional/visual_compositional/multiple_choice/hypothetical/fact_check/unanswerable) × phạm vi bằng chứng (single_chart/text_to_chart/chart_to_chart/fact_check_dual) |
-| **Quy mô mục tiêu** | MVP: 1.200 document / 6.000 QA · Mở rộng: 2.000 document / 10.000–12.000 QA |
+| **Quy mô mục tiêu** | MVP: 1.200 document / 6.000 QA · Mở rộng: 2.000 document / ~15.000 QA |
 | **Backbone mô hình** | Vintern-3B (chính), Qwen2.5-VL-7B, InternVL3-8B |
 | **Venue mục tiêu** | ACL hoặc EMNLP (2 hội nghị CORE A* trong dòng *ACL; NAACL/EACL chỉ hạng A) qua ARR — xem [docs/06](docs/06-publication-strategy.md) |
 
