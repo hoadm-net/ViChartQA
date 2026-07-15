@@ -1,6 +1,6 @@
 streamlit>=1.38
 sqlalchemy>=2.0
-pandas>=2.0
+pandas>=2.0,<3.0  # pandas 3.0's pyarrow-backed string dtype segfaults in Streamlit's ScriptRunner thread (mimalloc thread-init bug)
 pillow>=10.0
 bcrypt>=4.1
 openai>=1.40

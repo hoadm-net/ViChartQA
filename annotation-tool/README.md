@@ -43,7 +43,15 @@ Mặc định chạy ở `localhost:8501`. Deploy thật chạy trên server/VPS
 
 Title + toàn văn body_text (chèn `[CHART N]` đúng vị trí từng chart xuất hiện trong bài) + tối đa 3 ảnh chart — ảnh tự đặt tên theo hash, preview ngay khi upload. Điền nguồn (provider/domain/url) — ngày truy cập tự động = hôm nay.
 
-### 2. Soạn câu hỏi
+### 2. Quản lý document
+
+Bảng danh sách toàn bộ document (title, domain, provider, status, split, số chart, số câu hỏi, người tạo) — bấm 1 dòng để xem chi tiết bên dưới.
+
+- **Sửa** (chỉ role `pm`/`data_intake`): title, body_text (re-validate `[CHART N]` khớp số chart, giống lúc nhập), provider, domain, URL. `status`/`split`/ngày truy cập không sửa tay được — do workflow/export tự quản lý.
+- **Xoá** (chỉ role `pm`): nút 🗑️ ngay trong cột action của bảng danh sách, bấm mở modal xác nhận nêu rõ tên document + số câu hỏi sẽ mất, phải bấm xác nhận lần 2 mới xoá thật. Xoá thì xoá luôn toàn bộ câu hỏi/evidence/lịch sử liên quan (`documents.delete_document()`), không thể hoàn tác.
+- Role khác chỉ xem được, không có nút Sửa và không thấy cột action Xoá.
+
+### 3. Soạn câu hỏi
 
 Trang duy nhất sau khi nhập xong document:
 
@@ -53,11 +61,11 @@ Trang duy nhất sau khi nhập xong document:
 - **Câu hỏi đã có**: nút Sửa (nạp lại vào form, lưu thành version mới), Bỏ (rút, chuyển status `rejected`), xem lịch sử chỉnh sửa (`question_versions`).
 - Cảnh báo nếu document chưa đủ tối thiểu 1 câu `single_chart` + 1 câu multi-hop.
 
-### 3. Dashboard
+### 4. Dashboard
 
 Theo dõi tiến độ: document/câu hỏi theo status, tỷ trọng `question_type`/`hop_type` thực tế so với mục tiêu, năng suất theo người dùng.
 
-### 4. Export
+### 5. Export
 
 Gán split train/val/test theo document (không theo câu hỏi, tránh leakage), xuất file JSON theo schema ở [docs/02](../docs/02-dataset-design.md#schema-dữ-liệu-đề-xuất) — chỉ lấy câu hỏi `status=active`.
 
@@ -72,17 +80,22 @@ constants.py           # enum dùng chung (question_type, hop_type, status...)
 validation.py            # logic thuần Python: evidence không rỗng + quote khớp body_text,
                             # eval derivation — KHÔNG import streamlit, test độc lập được
 versioning.py              # logic thuần Python: snapshot_question/record_version (question_versions)
-question_ui.py                # widget Streamlit dùng chung: evidence builder, form soạn câu hỏi
-                                 # (pages/2 gọi lại, không định nghĩa lại)
-vlm_client.py                    # gọi model qua OpenRouter, parse response thành gợi ý tham khảo
-export.py                          # build JSON dataset cuối + gán train/val/test split
-auth.py                              # session login (bcrypt), không dùng dịch vụ ngoài
+documents.py                 # logic thuần Python: delete_document() — xoá document theo
+                               # đúng thứ tự phụ thuộc để không vỡ FK (xem docstring)
+question_ui.py                 # widget Streamlit dùng chung: evidence builder, form soạn câu hỏi
+                                  # (pages/3 gọi lại, không định nghĩa lại)
+vlm_client.py                     # gọi model qua OpenRouter, parse response thành gợi ý tham khảo
+export.py                           # build JSON dataset cuối + gán train/val/test split
+auth.py                               # session login (bcrypt), không dùng dịch vụ ngoài
 pages/
-  1_document_intake.py                 # nạp document
-  2_question_workspace.py                # gợi ý LLM + soạn/sửa câu hỏi
-  3_dashboard.py                           # tiến độ, taxonomy, năng suất
-  4_export.py                                # export dataset
-scripts/seed_users.py                          # tạo tài khoản (chạy 1 lần, sửa USERS trước)
+  1_document_intake.py                  # nạp document
+  2_document_manager.py                   # danh sách/sửa/xoá document
+  3_question_workspace.py                   # gợi ý LLM + soạn/sửa câu hỏi
+  4_dashboard.py                              # tiến độ, taxonomy, năng suất
+  5_export.py                                   # export dataset
+scripts/
+  seed_users.py                                   # tạo tài khoản hàng loạt (chạy 1 lần, sửa USERS trước)
+  create_user.py                                    # tạo 1 tài khoản qua CLI, dùng khi cần thêm người sau
 tests/
   test_validation.py    # unit test cho validation.py
   test_vlm_client.py       # unit test cho phần parse response (không gọi API thật)
@@ -104,7 +117,7 @@ Không có `pytest` trong requirements — mỗi file test tự chạy được 
 
 ## Trạng thái hiện tại
 
-Đã xong đủ 4 trang (nhập document → soạn câu hỏi → dashboard → export), có test cho từng trang. Không có bước xác minh chéo/phân xử — thay bằng version history (`question_versions`) ghi lại mỗi lần tạo/sửa/rút câu hỏi. Việc còn lại trước khi dùng cho pilot thật:
+Đã xong đủ 5 trang (nhập document → quản lý document → soạn câu hỏi → dashboard → export), có test cho từng trang. Không có bước xác minh chéo/phân xử — thay bằng version history (`question_versions`) ghi lại mỗi lần tạo/sửa/rút câu hỏi. Việc còn lại trước khi dùng cho pilot thật:
 
 - [ ] Điền danh sách người thật vào `scripts/seed_users.py` (đang là placeholder `pod_a_1`, `pod_b_1`...)
 - [ ] Điền API key thật vào `.streamlit/secrets.toml`, thử gọi thật cả 3 model VLM (chưa test được trong môi trường dev vì không có key)
