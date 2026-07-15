@@ -1,6 +1,6 @@
-"""Pure Python validation logic — no Streamlit import here (see docs/08 §3).
+"""Pure Python validation logic — no Streamlit import here, so it's testable in isolation.
 
-Reused by: annotation pages (block/warn on submit) and the Tuần 5 export/cleanup script.
+Reused by: annotation pages (block/warn on submit) and the export/cleanup script.
 """
 
 from __future__ import annotations

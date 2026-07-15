@@ -1,5 +1,5 @@
 """Bước duy nhất sau intake: gợi ý câu hỏi bằng LLM (chỉ tham khảo, không tự lưu) +
-soạn/sửa câu hỏi thủ công. Thay cho 3 trang cũ (data_table/seed/VLM) — xem docs/03, docs/08.
+soạn/sửa câu hỏi thủ công. Thay cho 3 trang cũ (data_table/seed/VLM) — xem docs/03.
 
 Không có data_table backing cho evidence — series/x của evidence chart là tự do,
 annotator gõ tay (xem docs/02). Không có bước xác minh chéo/phân xử: mỗi lần

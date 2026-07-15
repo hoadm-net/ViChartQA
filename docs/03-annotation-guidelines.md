@@ -1,10 +1,10 @@
 # 03 — Hướng dẫn gán nhãn
 
-Dành cho annotator (Pod B, Pod C — xem [docs/05](05-timeline-and-roles.md)). Đọc trước pilot Tuần 1; cập nhật thành v2 sau pilot.
+Dành cho annotator. Đọc trước khi bắt đầu pilot; cập nhật thành v2 sau pilot.
 
 ## Nguyên tắc chung
 
-1. Câu hỏi phải trả lời được chỉ từ document (title + body_text + chart đi kèm) — không cần kiến thức nền bên ngoài (trừ nhóm "giả định").
+1. Câu hỏi phải trả lời được chỉ từ document (title + body_text + chart đi kèm) — không cần kiến thức nền bên ngoài.
 2. Đáp án phải duy nhất và khách quan.
 3. Ưu tiên câu hỏi tự nhiên — hình dung người thật đọc báo cáo sẽ hỏi gì.
 4. Giữ nguyên thuật ngữ miền — không đơn giản hoá thuật ngữ kinh tế/khoa học.
@@ -47,7 +47,6 @@ Xác định đối tượng bằng đặc điểm thị giác trước, rồi t
 | `question_type` | Định nghĩa | Ví dụ |
 |---|---|---|
 | `multiple_choice` | 4 lựa chọn (`choices`), 1 đúng; lựa chọn sai phải "gần đúng" | "Năm nào có tăng trưởng GDP cao nhất? A. 2021 B. 2022 C. 2023 D. 2024" |
-| `hypothetical` | Giả định ngoài dữ liệu quan sát được | "Nếu xu hướng 2020–2024 tiếp diễn, giá trị năm 2027 gần nhất là bao nhiêu?" |
 | `fact_check` | Xác nhận đúng/sai một phát biểu | "Đúng hay sai: chi tiêu R&D luôn tăng liên tục trong giai đoạn quan sát?" |
 | `unanswerable` | Không trả lời được từ document | "Nguyên nhân khiến lạm phát tăng đột biến năm 2023 là gì?" |
 
@@ -89,7 +88,7 @@ chéo độc lập nên đây là chốt kiểm chứng duy nhất còn lại:
 - Hop từ chart: `series` (tên chuỗi/đường/cột) + `x` (nhãn/giá trị trục x) — annotator gõ tay trực tiếp, mô tả đúng cái đang nhìn trên ảnh; không có bảng dữ liệu gốc để đối chiếu tự động, công cụ chỉ chặn lưu nếu để trống.
 - Hop từ text: `quote` là đoạn trích nguyên văn ngắn từ body_text — công cụ auto-check khớp nguyên văn.
 
-Thiếu evidence (rỗng) hoặc quote không khớp nguyên văn `body_text` = công cụ chặn lưu ngay lúc soạn (xem [docs/08](08-annotation-tool-design.md)).
+Thiếu evidence (rỗng) hoặc quote không khớp nguyên văn `body_text` = công cụ chặn lưu ngay lúc soạn (xem [annotation-tool/README.md](../annotation-tool/README.md#hướng-dẫn-sử-dụng)).
 
 ## Quy tắc viết đáp án
 
@@ -107,7 +106,7 @@ Thiếu evidence (rỗng) hoặc quote không khớp nguyên văn `body_text` = 
 
 ### 2. Soạn câu hỏi
 
-Ở trang "Soạn câu hỏi" (xem [docs/08](08-annotation-tool-design.md)): có thể bấm sinh gợi ý bằng LLM để tham khảo (không tự lưu vào dataset — chỉ dùng làm mẫu rồi tự viết/sửa lại), hoặc viết thẳng từ đầu. Mỗi document cần tối thiểu:
+Ở trang "Soạn câu hỏi" (xem [annotation-tool/README.md](../annotation-tool/README.md#hướng-dẫn-sử-dụng)): có thể bấm sinh gợi ý bằng LLM để tham khảo (không tự lưu vào dataset — chỉ dùng làm mẫu rồi tự viết/sửa lại), hoặc viết thẳng từ đầu. Mỗi document cần tối thiểu:
 
 - 1 câu `single_chart` (compositional hoặc visual_compositional).
 - 1 câu multi-hop (`text_to_chart`/`chart_to_chart`/`fact_check_dual`).

@@ -14,7 +14,6 @@ from datetime import date
 from pathlib import Path
 
 import streamlit as st
-from sqlalchemy import select
 
 from auth import current_user, require_login
 from constants import CHART_COMPLEXITY, CHART_TYPES, DOMAINS, MAX_BODY_TEXT_WORDS
@@ -137,14 +136,3 @@ if st.button("Lưu document", type="primary", key=k("submit")):
         st.success(f"Đã lưu document #{doc.id} với {len(chart_meta)} chart. Sang trang 'Soạn câu hỏi' để tiếp tục.")
         st.session_state["intake_form_gen"] += 1
         st.rerun()
-
-st.divider()
-st.subheader("Document đã nạp")
-with get_session() as session:
-    docs = session.scalars(select(Document).order_by(Document.id.desc())).all()
-    if not docs:
-        st.info("Chưa có document nào.")
-    else:
-        for d in docs:
-            n_charts = len(d.charts)
-            st.write(f"**#{d.id}** — {d.title[:80]} · {d.source_domain} · {n_charts} chart · status=`{d.status}`")

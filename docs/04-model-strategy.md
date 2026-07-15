@@ -4,7 +4,7 @@
 
 Không huấn luyện mô hình từ đầu — fine-tune một backbone VLM có sẵn (LoRA/QLoRA), đầu tư thời gian vào chất lượng dữ liệu + đánh giá thay vì kiến trúc mới.
 
-Input mô hình là title + body_text + 1-3 ảnh chart cùng lúc. Backbone phải hỗ trợ multi-image input — xác nhận sớm (Tuần 1-2, Pod D) khả năng multi-image của từng backbone, đặc biệt Vintern-3B (không giả định).
+Input mô hình là title + body_text + 1-3 ảnh chart cùng lúc. Backbone phải hỗ trợ multi-image input — xác nhận sớm khả năng multi-image của từng backbone, đặc biệt Vintern-3B (không giả định).
 
 ## Backbone đề xuất
 
@@ -31,7 +31,7 @@ Tuần 3-4, song song annotation:
 - LoRA/QLoRA trên train set — giữ nguyên vision encoder, fine-tune connector + LLM decoder (hoặc full LoRA tuỳ compute).
 - Ablation bắt buộc:
   - Theo domain thực tế đạt được.
-  - Theo `question_type` (8 giá trị) — xác định nhóm khó nhất.
+  - Theo `question_type` (7 giá trị) — xác định nhóm khó nhất.
   - Theo `hop_type` — `single_chart` vs `text_to_chart`/`chart_to_chart`/`fact_check_dual`, bằng chứng số liệu cho claim "multi-hop khó hơn chart-only".
   - Theo độ phức tạp chart (`simple`/`complex`).
 
@@ -53,5 +53,3 @@ Gán chuỗi suy luận (rationale) cho tập con câu hỏi số học, thử S
 - Fine-tune LoRA backbone 3B-8B: tối thiểu 1× GPU 80GB, liên tục ~3-4 tuần (Tuần 5-7).
 - Baseline zero-shot qua API: ngân sách riêng, ước theo test set (không toàn bộ dataset).
 - Baseline mã nguồn mở: chạy local nếu có GPU.
-
-Checklist ngân sách ở [docs/05](05-timeline-and-roles.md).

@@ -1,5 +1,5 @@
 """Enum values shared by models.py, validation.py, and the Streamlit pages.
-Source of truth: docs/02-dataset-design.md (taxonomy) and docs/08-annotation-tool-design.md (workflow states).
+Source of truth for the question taxonomy: docs/02-dataset-design.md.
 """
 
 QUESTION_TYPES = [
@@ -8,7 +8,6 @@ QUESTION_TYPES = [
     "compositional",
     "visual_compositional",
     "multiple_choice",
-    "hypothetical",
     "fact_check",
     "unanswerable",
 ]

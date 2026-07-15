@@ -1,5 +1,5 @@
 """SQLite engine + session setup. WAL mode and busy_timeout are mandatory
-(see docs/08-annotation-tool-design.md §3.2) — do not remove the PRAGMA calls.
+for safe-enough concurrent writes at small team scale — do not remove the PRAGMA calls.
 """
 
 import os
