@@ -15,10 +15,19 @@ cp .streamlit/secrets.toml.example .streamlit/secrets.toml
 # (xem VLM_MODEL_SLUGS trong constants.py) gọi qua OpenRouter, chỉ cần 1 key: https://openrouter.ai/keys
 
 python db.py                 # tạo data/vichartqa.db (WAL mode)
-python scripts/seed_users.py # tạo tài khoản — SỬA DANH SÁCH USERS trong file này trước khi chạy thật
+python scripts/seed_users.py # tạo tài khoản hàng loạt — SỬA DANH SÁCH USERS trong file này trước khi chạy thật
 ```
 
 `scripts/seed_users.py` in ra mật khẩu **một lần duy nhất** — lưu lại ngay (password manager), gửi riêng cho từng người.
+
+Để thêm 1 người sau này (không cần sửa file), dùng `scripts/create_user.py`:
+
+```bash
+python scripts/create_user.py pod_b_4 B annotator   # truyền đủ tham số
+python scripts/create_user.py                       # hoặc để trống, script sẽ hỏi từng giá trị
+```
+
+Báo lỗi nếu tên đăng nhập đã tồn tại; mật khẩu cũng chỉ in ra một lần duy nhất.
 
 ## Chạy
 

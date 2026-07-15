@@ -4,6 +4,8 @@ created by hand via scripts/seed_users.py.
 
 from __future__ import annotations
 
+import secrets
+
 import bcrypt
 import streamlit as st
 from sqlalchemy import select
@@ -12,8 +14,25 @@ from db import get_session
 from models import User
 
 
+class UserExistsError(ValueError):
+    pass
+
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+
+def create_account(name: str, pod: str, role: str) -> str:
+    """Tạo 1 User mới với mật khẩu ngẫu nhiên, trả về mật khẩu (chỉ tồn tại ở đây
+    một lần — chỉ password_hash được lưu vào DB). Dùng chung bởi
+    scripts/seed_users.py và scripts/create_user.py."""
+    with get_session() as session:
+        if session.scalar(select(User).where(User.name == name)):
+            raise UserExistsError(f"Tài khoản '{name}' đã tồn tại")
+        password = secrets.token_urlsafe(9)
+        session.add(User(name=name, pod=pod, role=role, password_hash=hash_password(password)))
+        session.commit()
+    return password
 
 
 def verify_password(password: str, password_hash: str) -> bool:

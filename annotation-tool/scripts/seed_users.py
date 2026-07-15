@@ -4,48 +4,43 @@ then run once: `python scripts/seed_users.py`.
 Prints each generated password once — save them somewhere safe (e.g. a password
 manager) and share individually with each annotator. Re-running is safe: existing
 usernames are skipped, not overwritten.
+
+Để thêm 1 tài khoản sau này, dùng `python scripts/create_user.py` thay vì sửa file này.
 """
 
-import secrets
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sqlalchemy import select
-
-from auth import hash_password
-from db import get_session, init_db
-from models import User
+from auth import UserExistsError, create_account
+from db import init_db
 
 # (name, pod, role) — role in {annotator, pm, data_intake}
 USERS = [
     ("pm", "E", "pm"),
-    ("pod_a_1", "A", "data_intake"),
-    ("pod_a_2", "A", "data_intake"),
-    ("pod_b_1", "B", "annotator"),
-    ("pod_b_2", "B", "annotator"),
-    ("pod_b_3", "B", "annotator"),
-    ("pod_c_1", "C", "annotator"),
-    ("pod_c_2", "C", "annotator"),
-    ("pod_d_1", "D", "annotator"),
-    ("pod_d_2", "D", "annotator"),
+    # ("pod_a_1", "A", "data_intake"),
+    # ("pod_a_2", "A", "data_intake"),
+    # ("pod_b_1", "B", "annotator"),
+    # ("pod_b_2", "B", "annotator"),
+    # ("pod_b_3", "B", "annotator"),
+    # ("pod_c_1", "C", "annotator"),
+    # ("pod_c_2", "C", "annotator"),
+    # ("pod_d_1", "D", "annotator"),
+    # ("pod_d_2", "D", "annotator"),
 ]
 
 
 def main() -> None:
     init_db()
     created = []
-    with get_session() as session:
-        for name, pod, role in USERS:
-            existing = session.scalar(select(User).where(User.name == name))
-            if existing:
-                print(f"skip (exists): {name}")
-                continue
-            password = secrets.token_urlsafe(9)
-            session.add(User(name=name, pod=pod, role=role, password_hash=hash_password(password)))
-            created.append((name, pod, role, password))
-        session.commit()
+    for name, pod, role in USERS:
+        try:
+            password = create_account(name, pod, role)
+        except UserExistsError:
+            print(f"skip (exists): {name}")
+            continue
+        created.append((name, pod, role, password))
 
     if created:
         print("\nTài khoản mới tạo — lưu lại ngay, mật khẩu không hiển thị lại được:")
