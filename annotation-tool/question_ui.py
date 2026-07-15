@@ -17,9 +17,10 @@ from validation import check_derivation, derivation_required, is_duplicate_quest
 
 def render_evidence_builder(k, charts_by_id: dict, initial_evidence: list[dict] | None = None) -> list[dict]:
     """`k(name)` is the caller's widget-key function (shares its form_gen reset).
-    `charts_by_id`: {chart.id: {"chart_id": str, "image_path": str | None}}. series/x
-    for chart evidence are free text the annotator types directly — không có
-    data_table để tra cứu, nên preview ảnh ngay tại chỗ để annotator nhìn mà gõ."""
+    `charts_by_id`: {chart.id: {"chart_id": str, "image_path": str | None}}. `description`
+    for chart evidence is free text the annotator types directly (các bước truy hồi giá
+    trị, đánh số thứ tự — xem docs/03) — không có data_table để tra cứu, nên preview ảnh
+    ngay tại chỗ để annotator nhìn mà gõ."""
     init_evidence = initial_evidence or []
     n_hops_default = len(init_evidence) or 1
     n_hops = st.number_input("Số hop", min_value=1, max_value=3, value=n_hops_default, key=k("n_hops"))
@@ -53,20 +54,19 @@ def render_evidence_builder(k, charts_by_id: dict, initial_evidence: list[dict] 
             if preview_path:
                 st.image(preview_path, width=280)
 
-            series = st.text_input(
-                "Series/chiều dữ liệu (vd. tên đường/cột trên chart)",
-                value=ev_init.get("series") or "",
-                key=k(f"series_{i}"),
+            description = st.text_area(
+                "Cách đọc (đánh số từng bước)",
+                value=ev_init.get("description") or "",
+                key=k(f"description_{i}"),
+                height=100,
+                help=(
+                    'Đánh số từng bước truy hồi giá trị, đủ để người khác đọc lại và tự tìm đúng điểm dữ liệu '
+                    'trên ảnh — vd. "1. Tìm đường \'GDP\'. 2. Xác định 2 điểm ứng năm 2011 và 2021. '
+                    '3. Đọc giá trị trục y tại 2 điểm đó."'
+                ),
             )
-            x_default = ", ".join(ev_init.get("x") or [])
-            x_text = st.text_input(
-                "Giá trị/nhãn trục x (phân cách bằng dấu phẩy nếu nhiều)",
-                value=x_default,
-                key=k(f"x_{i}"),
-            )
-            x_vals = [v.strip() for v in x_text.split(",") if v.strip()]
             evidence_items.append(
-                {"hop": i + 1, "source": "chart", "chart_id": sel_chart_id, "series": series, "x": x_vals}
+                {"hop": i + 1, "source": "chart", "chart_id": sel_chart_id, "description": description}
             )
         else:
             quote = st.text_area(
@@ -127,7 +127,7 @@ def render_question_form(prefix: str, doc, charts_by_id: dict, existing_question
             ok, msg = check_derivation(derivation, answer)
             (st.success if ok else st.warning)(msg)
 
-    st.markdown("**Evidence** (bắt buộc — chart số mấy/series/x nào, hoặc đoạn text nào)")
+    st.markdown("**Evidence** (bắt buộc — chart nào + các bước đọc, hoặc đoạn text nào)")
     evidence_items = render_evidence_builder(k, charts_by_id, initial.get("evidence"))
 
     if st.button("Lưu câu hỏi", type="primary", key=k("submit")):

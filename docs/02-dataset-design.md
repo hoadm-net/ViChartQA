@@ -5,7 +5,7 @@
 - **Đơn vị dữ liệu:** document = `{title, body_text, charts: [1..3 ảnh]}`, lấy từ một bài viết/báo cáo thật, dưới 2.000 từ.
 - **Loại ảnh chart (`chart_type`):** `bar`, `line`, `pie` (đơn — 1 loại mark, kể cả khi có stack/group nhiều chuỗi), `combo` (1 vùng vẽ trộn từ 2 loại mark trở lên, vd cột doanh thu + đường tăng trưởng, thực tế gặp rất nhiều), `subplot` (nhiều panel trong 1 ảnh) — không nhận infographic, dashboard, hay bảng số liệu thuần text.
 - **Ảnh có subplot:** nếu 1 ảnh là hình ghép nhiều panel khác loại chart (vd pie cạnh bar), coi cả ảnh là **1 chart entry**, `chart_type: "subplot"` — không tách nhãn theo từng panel vì bản thân ảnh không có nhãn (a)/(b) để phân biệt, tách ra chỉ tạo id ảo mà việc đọc ảnh (kể cả model) không dùng được.
-- **`body_text` là toàn văn bài báo** (không cắt đoạn) — vì có câu hỏi chỉ dựa vào thông tin trong text mà không chart nào vẽ ra, cắt bớt sẽ mất nguyên liệu cho `text_to_chart`/`fact_check_dual`. Bỏ hẳn phần bài không liên quan tới chủ đề đang khai thác. Chèn placeholder `[CHART 1]`, `[CHART 2]`... vào đúng vị trí từng chart xuất hiện trong bài, theo đúng thứ tự — vừa neo chart vào đúng mạch bài (khỏi cần tách nhãn subplot), vừa là quy ước duy nhất nối `body_text` với `charts[]` theo thứ tự.
+- **`body_text` là toàn văn bài báo** (không cắt đoạn) — vì có câu hỏi chỉ dựa vào thông tin trong text mà không chart nào vẽ ra (`hop_type: "text"`), cắt bớt sẽ mất nguyên liệu cho cả loại đó lẫn `text_and_chart`. Bỏ hẳn phần bài không liên quan tới chủ đề đang khai thác. Chèn placeholder `[CHART 1]`, `[CHART 2]`... vào đúng vị trí từng chart xuất hiện trong bài, theo đúng thứ tự — vừa neo chart vào đúng mạch bài (khỏi cần tách nhãn subplot), vừa là quy ước duy nhất nối `body_text` với `charts[]` theo thứ tự.
 - **Ngôn ngữ:** tiêu đề, body_text, nhãn/chú thích trên chart phải là tiếng Việt gốc (không dịch từ tiếng Anh).
 - **Miền:** mở rộng theo nguồn cung thực tế, không ép cứng tỷ lệ.
 
@@ -50,21 +50,23 @@ Hai chiều độc lập, mỗi câu hỏi gán nhãn cả hai.
 
 ### Chiều 2 — phạm vi bằng chứng / hop-type (mới, claim chính của dự án)
 
+Tách theo đúng 1 tiêu chí duy nhất — cần đọc nguồn nào để trả lời — không trộn với dạng câu trả lời (đúng/sai hay tính toán, việc đó đã thuộc `question_type`):
+
 | Hop-type | Mô tả | Ví dụ |
 |---|---|---|
-| `single_chart` | Trả lời được chỉ từ 1 chart | "Vốn FDI năm 2020 là bao nhiêu?" |
-| `text_to_chart` | Hop 1 lấy claim/số liệu chỉ có trong body_text, hop 2 đối chiếu/tính toán với chart | "Bài viết nêu dự báo ADB cho 2022 — so với GDP 2021 trên Hình 1, mức tăng tuyệt đối dự kiến là bao nhiêu?" |
-| `chart_to_chart` | ≥2 chart, body_text là cầu nối | "Trong 2011–2021, chỉ tiêu nào tăng nhanh hơn: GDP (Hình 1) hay kim ngạch xuất nhập khẩu (Hình 3)?" |
-| `fact_check_dual` | Cần cả text lẫn chart để xác minh đúng/sai | "Đúng hay sai: vốn FDI tăng liên tục suốt 2011–2021?" |
+| `text` | Trả lời được chỉ từ body_text, không cần chart nào | "Bài viết dự báo tăng trưởng GDP 2022 là bao nhiêu %, theo ADB?" |
+| `chart` | Trả lời được chỉ từ 1 chart | "Vốn FDI năm 2020 là bao nhiêu?" |
+| `text_and_chart` | Cần cả body_text lẫn 1 chart kết hợp — vd 1 claim/số liệu chỉ có trong text, đối chiếu/tính toán với chart; hoặc xác minh 1 phát biểu đúng/sai cần cả 2 nguồn | "Bài viết nêu dự báo ADB cho 2022 — so với GDP 2021 trên Hình 1, mức tăng tuyệt đối dự kiến là bao nhiêu?" / "Đúng hay sai: vốn FDI tăng liên tục suốt 2011–2021?" |
+| `charts` | ≥2 chart, body_text là cầu nối | "Trong 2011–2021, chỉ tiêu nào tăng nhanh hơn: GDP (Hình 1) hay kim ngạch xuất nhập khẩu (Hình 3)?" |
 
-Ngưỡng mục tiêu: ≥50% câu hỏi test set thuộc 3 loại multi-hop (neo theo mốc 48.74% của MultiHiertt — [docs/01](01-related-work.md#4b-dòng-multi-hop-qa-trên-dữ-liệu-có-cấu-trúc-text--tablechart)). Phần còn lại là `single_chart`, dùng để so sánh trực tiếp với ChartQA/ChartQAPro.
+Ngưỡng mục tiêu: ≥50% câu hỏi test set thuộc 2 loại multi-hop (`text_and_chart`/`charts`, neo theo mốc 48.74% của MultiHiertt — [docs/01](01-related-work.md#4b-dòng-multi-hop-qa-trên-dữ-liệu-có-cấu-trúc-text--tablechart)). Phần còn lại là `chart`/`text`, trong đó `chart` dùng để so sánh trực tiếp với ChartQA/ChartQAPro.
 
-Ví dụ tốt/xấu chi tiết ở [docs/03](03-annotation-guidelines.md).
+Ví dụ tốt/xấu chi tiết ở [docs/03](03-annotation-guidelines.md); 2 document thật gán nhãn đầy đủ (cả 7 `question_type`) ở [docs/05](05-annotation-examples.md).
 
 ## Quy trình gán nhãn (tổng quan)
 
-1. **Đọc document** — xác định số liệu/claim chỉ có trong text, không vẽ trên chart nào (nguyên liệu cho `text_to_chart`/`fact_check_dual`).
-2. **Soạn câu hỏi** — gợi ý bằng LLM (chỉ câu hỏi + đáp án, không sinh `evidence`, chỉ tham khảo, không tự lưu) + tự viết/sửa qua form, tối thiểu 1 multi-hop + 1 `single_chart`/document. `evidence` luôn do annotator tự đọc chart/text rồi điền tay — kể cả câu hỏi bắt nguồn từ gợi ý LLM — công cụ chặn lưu nếu thiếu/sai.
+1. **Đọc document** — xác định số liệu/claim chỉ có trong text, không vẽ trên chart nào (nguyên liệu cho `text`/`text_and_chart`).
+2. **Soạn câu hỏi** — gợi ý bằng LLM (chỉ câu hỏi + đáp án, không sinh `evidence`, chỉ tham khảo, không tự lưu) + tự viết/sửa qua form, tối thiểu 1 multi-hop + 1 `chart`/document. `evidence` luôn do annotator tự đọc chart/text rồi điền tay — kể cả câu hỏi bắt nguồn từ gợi ý LLM — công cụ chặn lưu nếu thiếu/sai.
 3. **Sửa/rút khi cần** — không có bước xác minh chéo độc lập; mỗi lần tạo/sửa/rút một câu hỏi được ghi lại thành một bản snapshot (version history) làm audit trail.
 
 Quy trình đầy đủ ở [docs/03](03-annotation-guidelines.md).
@@ -84,7 +86,7 @@ Nhóm so sánh (multi-hop text+structured-data):
 | MultiHiertt | 2.513 document / 10.440 QA |
 | SlideVQA | 2.600 deck / 14.500 QA |
 
-MVP 1.200 document/6.000 QA cùng bậc quy mô với nhóm này. ChartQAPro (1.341/1.948) và ViInfographicVQA (6.747/20.409) là mốc tham khảo phụ cho slice `single_chart`. Ưu tiên đạt MVP với chất lượng cao hơn cố quy mô mở rộng mà giảm chất lượng.
+MVP 1.200 document/6.000 QA cùng bậc quy mô với nhóm này. ChartQAPro (1.341/1.948) và ViInfographicVQA (6.747/20.409) là mốc tham khảo phụ cho slice `chart`. Ưu tiên đạt MVP với chất lượng cao hơn cố quy mô mở rộng mà giảm chất lượng.
 
 ## Chia tập train/val/test
 
@@ -117,12 +119,12 @@ Tỷ lệ ~77%/10%/13% (như ChartQA gốc), chia theo document (không theo câ
       "equivalent_answers": [],
       "answer_type": "text",
       "question_type": "compositional",
-      "hop_type": "chart_to_chart",
+      "hop_type": "charts",
       "derivation": "",
       "choices": null,
       "evidence": [
-        { "hop": 1, "source": "chart", "chart_id": "fig1", "series": "GDP (triệu tỷ đồng)", "x": ["2011", "2021"] },
-        { "hop": 2, "source": "chart", "chart_id": "fig2", "series": "Xuất nhập khẩu (tỷ USD)", "x": ["2011", "2021"] }
+        { "hop": 1, "source": "chart", "chart_id": "fig1", "description": "1. Tìm đường \"GDP\". 2. Đọc giá trị trục y tại năm 2011 và 2021." },
+        { "hop": 2, "source": "chart", "chart_id": "fig2", "description": "1. Tìm đường \"Xuất nhập khẩu\". 2. Đọc giá trị trục y tại năm 2011 và 2021." }
       ]
     },
     {
@@ -132,11 +134,11 @@ Tỷ lệ ~77%/10%/13% (như ChartQA gốc), chia theo document (không theo câ
       "equivalent_answers": ["5,9"],
       "answer_type": "numeric",
       "question_type": "compositional",
-      "hop_type": "single_chart",
+      "hop_type": "chart",
       "derivation": "8.4 - 2.5",
       "choices": null,
       "evidence": [
-        { "hop": 1, "source": "chart", "chart_id": "fig1", "series": "GDP (triệu tỷ đồng)", "x": ["2011", "2021"] }
+        { "hop": 1, "source": "chart", "chart_id": "fig1", "description": "1. Tìm đường \"GDP\". 2. Đọc giá trị trục y tại năm 2011 và 2021." }
       ]
     },
     {
@@ -146,11 +148,25 @@ Tỷ lệ ~77%/10%/13% (như ChartQA gốc), chia theo document (không theo câ
       "equivalent_answers": [],
       "answer_type": "text",
       "question_type": "multiple_choice",
-      "hop_type": "single_chart",
+      "hop_type": "chart",
       "derivation": "",
       "choices": ["2015", "2018", "2019", "2021"],
       "evidence": [
-        { "hop": 1, "source": "chart", "chart_id": "fig1", "series": "GDP (triệu tỷ đồng)", "x": ["2011", "2012", "...", "2021"] }
+        { "hop": 1, "source": "chart", "chart_id": "fig1", "description": "1. Tìm đường \"GDP\". 2. So sánh độ dốc giữa các năm liên tiếp từ 2011 đến 2021, xác định năm có mức tăng lớn nhất." }
+      ]
+    },
+    {
+      "id": "q4",
+      "question": "Theo bài viết, xu hướng chung của dòng vốn FDI và kim ngạch xuất nhập khẩu trong giai đoạn này là gì?",
+      "answer": "Tích cực dù có biến động ở một số năm",
+      "equivalent_answers": [],
+      "answer_type": "text",
+      "question_type": "data_retrieval",
+      "hop_type": "text",
+      "derivation": "",
+      "choices": null,
+      "evidence": [
+        { "hop": 1, "source": "text", "quote": "dòng vốn FDI và kim ngạch xuất nhập khẩu cũng ghi nhận xu hướng tích cực dù có biến động ở một số năm" }
       ]
     }
   ],
@@ -164,8 +180,13 @@ Tỷ lệ ~77%/10%/13% (như ChartQA gốc), chia theo document (không theo câ
 
 ### Định dạng `evidence`
 
-- `source: "chart"` → `{chart_id, series, x}` — `series` (tên chuỗi/đường/cột) và `x` (nhãn/giá trị trục x) do annotator gõ tay trực tiếp khi soạn câu hỏi, mô tả đúng cái họ đang nhìn trên ảnh. Không có bảng dữ liệu gốc để đối chiếu tự động — chỉ kiểm tra `chart_id` có tồn tại trong document và `series`/`x` không để trống.
+- `source: "chart"` → `{chart_id, description}` — `description` là các bước truy hồi giá trị trên ảnh, annotator gõ tay trực tiếp (xem quy ước bên dưới). Không có bảng dữ liệu gốc để đối chiếu tự động — chỉ kiểm tra `chart_id` có tồn tại trong document và `description` không để trống.
 - `source: "text"` → `{quote}`, đoạn trích nguyên văn ngắn từ `body_text` — vẫn auto-check được (phải khớp chuỗi con nguyên văn trong `body_text`).
+
+**Quy ước viết `description`:** đánh số từng bước (`1. ... 2. ... 3. ...`), đủ chi tiết để người khác đọc lại (không nhìn câu hỏi/đáp án trước) mà vẫn tự tìm ra đúng điểm dữ liệu trên ảnh — không diễn giải lại đáp án. Mỗi bước nêu **một thao tác đọc chart cụ thể**: xác định chuỗi/cột theo tên hoặc màu → xác định trục/mốc cần nhìn → đọc hoặc so sánh giá trị. Chart càng phức tạp (combo, subplot, nhiều chuỗi chồng nhau) càng cần tách bước rõ ràng thay vì gộp chung 1 câu mơ hồ.
+
+- ✅ `"1. Tìm cột doanh thu (màu xanh) trong biểu đồ combo. 2. Tìm đường tăng trưởng (màu cam) cùng trục x. 3. Đọc giá trị 2 chuỗi tại năm 2023, so sánh."`
+- ❌ `"xem doanh thu và tăng trưởng năm 2023"` — không tách bước, không nói rõ đang nhìn chuỗi/trục nào, người đọc lại không tái lập được thao tác.
 
 ## Việc cần chốt trước khi crawl
 

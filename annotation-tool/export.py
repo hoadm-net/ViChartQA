@@ -57,7 +57,7 @@ def _export_document(doc: Document) -> dict | None:
                 "hop": e.hop_order,
                 "source": e.source,
                 **({"chart_id": chart_label_by_id.get(e.chart_id)} if e.source == "chart" else {}),
-                **({"series": e.series, "x": e.x} if e.source == "chart" else {}),
+                **({"description": e.description} if e.source == "chart" else {}),
                 **({"quote": e.quote} if e.source == "text" else {}),
             }
             for e in sorted(q.evidence, key=lambda e: e.hop_order)

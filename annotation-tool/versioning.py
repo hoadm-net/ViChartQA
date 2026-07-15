@@ -29,8 +29,7 @@ def snapshot_question(question: Question) -> dict:
                 "hop_order": e.hop_order,
                 "source": e.source,
                 "chart_id": e.chart_id,
-                "series": e.series,
-                "x": e.x,
+                "description": e.description,
                 "quote": e.quote,
             }
             for e in sorted(question.evidence, key=lambda e: e.hop_order)

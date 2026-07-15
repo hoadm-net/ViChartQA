@@ -5,7 +5,7 @@ body_text khi gửi cho model, không chỉ mô tả bằng tên chart_type.
 Trả về list[dict] khớp field của Question — chỉ mang tính tham khảo, không tự lưu vào
 DB. KHÔNG sinh evidence: annotator luôn tự đọc chart/text và điền evidence tay qua
 form ở pages/3_question_workspace.py, để giảm lỗi/sai lệch so với để LLM tự bịa
-series/x/quote.
+description/quote.
 """
 
 from __future__ import annotations
@@ -25,13 +25,15 @@ kèm loại biểu đồ), sinh thêm các câu hỏi ứng viên rải đều t
 
 Chiều 1 — question_type ({n_question_types} giá trị): {question_types}
 Chiều 2 — hop_type ({n_hop_types} giá trị): {hop_types}
-  - single_chart: trả lời được chỉ từ 1 chart.
-  - text_to_chart: 1 claim/số liệu CHỈ có trong body_text, đối chiếu/tính toán với chart.
-  - chart_to_chart: cần ≥2 chart, body_text là cầu nối.
-  - fact_check_dual: 1 phát biểu cần cả text lẫn chart để xác minh đúng/sai.
+  - text: trả lời được chỉ từ body_text, không cần chart nào.
+  - chart: trả lời được chỉ từ 1 chart.
+  - text_and_chart: cần cả body_text lẫn 1 chart kết hợp (vd 1 claim/số liệu chỉ có
+    trong text, đối chiếu/tính toán với chart; hoặc xác minh 1 phát biểu đúng/sai cần
+    cả 2 nguồn).
+  - charts: cần ≥2 chart, body_text là cầu nối.
 
 CHỈ sinh câu hỏi + đáp án, KHÔNG sinh evidence — annotator sẽ tự đọc chart/text và điền
-evidence (series/x hoặc quote) sau khi dùng gợi ý làm mẫu.
+evidence (description các bước đọc, hoặc quote) sau khi dùng gợi ý làm mẫu.
 
 Với mỗi câu hỏi trả về JSON object:
 {{

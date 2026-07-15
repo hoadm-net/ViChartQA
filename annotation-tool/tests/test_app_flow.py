@@ -91,7 +91,7 @@ def _insert_active_question(doc_id: int, user_id: int, question_text: str, answe
             answer=answer,
             answer_type="text",
             question_type="data_retrieval",
-            hop_type="single_chart",
+            hop_type="text",
             status="active",
             created_by=user_id,
         )
@@ -330,7 +330,7 @@ def _make_throwaway_document_with_question(user_id: int) -> tuple[int, int]:
             answer="tạm",
             answer_type="text",
             question_type="data_retrieval",
-            hop_type="single_chart",
+            hop_type="text",
             status="active",
             created_by=user_id,
         )
@@ -414,12 +414,16 @@ def test_page3_manual_add_creates_active_question_with_version(doc_id: int, user
     text_areas["Câu hỏi"].set_value("GDP năm 2021 là bao nhiêu?")
     text_inputs = {ti.label: ti for ti in at.text_input}
     text_inputs["Đáp án"].set_value("8.4")
-    # question_type/hop_type/answer_type left at defaults: data_retrieval/single_chart/numeric
-    # evidence: nguồn mặc định "chart" — series/x giờ là text tự do, không cần data_table
-    # điền trước (đã bỏ hẳn khái niệm data_table).
-    text_inputs = {ti.label: ti for ti in at.text_input}
-    text_inputs["Series/chiều dữ liệu (vd. tên đường/cột trên chart)"].set_value("GDP")
-    text_inputs["Giá trị/nhãn trục x (phân cách bằng dấu phẩy nếu nhiều)"].set_value("2021")
+    # question_type/answer_type left at defaults: data_retrieval/numeric; hop_type
+    # explicitly "chart" để khớp với evidence nguồn chart điền bên dưới.
+    hop_select = next(sb for sb in at.selectbox if sb.label == "hop_type")
+    hop_select.set_value("chart")
+    at.run(timeout=15)
+
+    # evidence: nguồn mặc định "chart" — description giờ là 1 textarea tự do (các bước
+    # truy hồi giá trị), không cần data_table điền trước.
+    text_areas = {ta.label: ta for ta in at.text_area}
+    text_areas["Cách đọc (đánh số từng bước)"].set_value("1. Tìm đường GDP. 2. Đọc giá trị năm 2021.")
     at.run(timeout=15)
     assert not at.exception, at.exception
 
@@ -435,11 +439,11 @@ def test_page3_manual_add_creates_active_question_with_version(doc_id: int, user
         assert q.answer == "8.4"
         assert q.status == "active"
         assert q.created_by == user_id
+        assert q.hop_type == "chart"
         evidence = s.scalars(select(Evidence).where(Evidence.question_id == q.id)).all()
         assert len(evidence) == 1
         assert evidence[0].source == "chart"
-        assert evidence[0].series == "GDP"
-        assert evidence[0].x == ["2021"]
+        assert evidence[0].description == "1. Tìm đường GDP. 2. Đọc giá trị năm 2021."
         versions = s.scalars(select(QuestionVersion).where(QuestionVersion.question_id == q.id)).all()
         assert len(versions) == 1, versions
         assert versions[0].change_type == "created"
@@ -528,7 +532,7 @@ def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_i
             "answer": "GDP tăng dần theo thời gian.",
             "answer_type": "text",
             "question_type": "data_retrieval",
-            "hop_type": "single_chart",
+            "hop_type": "chart",
             "derivation": "",
             "choices": None,
         }
@@ -553,7 +557,7 @@ def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_i
     )
     assert "evidence" not in at.session_state["workspace_form_initial"], "gợi ý LLM không được kèm evidence"
 
-    # evidence builder mặc định trống (nguồn "chart", series/x rỗng) — Lưu ngay phải bị chặn
+    # evidence builder mặc định trống (nguồn "chart", description rỗng) — Lưu ngay phải bị chặn
     save_btn = next(b for b in at.button if b.label == "Lưu câu hỏi")
     save_btn.click()
     at.run(timeout=15)
@@ -572,9 +576,8 @@ def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_i
         )
 
     # annotator tự điền evidence tay rồi mới lưu được
-    text_inputs = {ti.label: ti for ti in at.text_input}
-    text_inputs["Series/chiều dữ liệu (vd. tên đường/cột trên chart)"].set_value("GDP")
-    text_inputs["Giá trị/nhãn trục x (phân cách bằng dấu phẩy nếu nhiều)"].set_value("2011, 2021")
+    text_areas = {ta.label: ta for ta in at.text_area}
+    text_areas["Cách đọc (đánh số từng bước)"].set_value("1. Tìm đường GDP. 2. Đọc giá trị năm 2011 và 2021.")
     at.run(timeout=15)
 
     save_btn = next(b for b in at.button if b.label == "Lưu câu hỏi")

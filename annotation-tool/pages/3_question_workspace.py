@@ -1,9 +1,9 @@
 """Bước duy nhất sau intake: gợi ý câu hỏi bằng LLM (chỉ tham khảo, không tự lưu) +
 soạn/sửa câu hỏi thủ công. Thay cho 3 trang cũ (data_table/seed/VLM) — xem docs/03.
 
-Không có data_table backing cho evidence — series/x của evidence chart là tự do,
-annotator gõ tay (xem docs/02). Không có bước xác minh chéo/phân xử: mỗi lần
-tạo/sửa/rút một câu hỏi được ghi lại ở question_versions (xem versioning.py).
+Không có data_table backing cho evidence — description của evidence chart là các bước
+truy hồi giá trị, tự do gõ tay (xem docs/02). Không có bước xác minh chéo/phân xử: mỗi
+lần tạo/sửa/rút một câu hỏi được ghi lại ở question_versions (xem versioning.py).
 """
 
 import base64
@@ -78,7 +78,7 @@ with get_session() as session:
             "choices": q.choices,
             "status": q.status,
             "evidence": [
-                {"hop": e.hop_order, "source": e.source, "chart_id": e.chart_id, "series": e.series, "x": e.x, "quote": e.quote}
+                {"hop": e.hop_order, "source": e.source, "chart_id": e.chart_id, "description": e.description, "quote": e.quote}
                 for e in sorted(q.evidence, key=lambda e: e.hop_order)
             ],
             "versions": [
@@ -231,8 +231,7 @@ if result:
                     hop_order=item["hop"],
                     source=item["source"],
                     chart_id=item.get("chart_id"),
-                    series=item.get("series"),
-                    x=item.get("x"),
+                    description=item.get("description"),
                     quote=item.get("quote"),
                 )
             )

@@ -57,9 +57,9 @@ Trang duy nhất sau khi nhập xong document:
 
 - Chọn document, xem lại title/body_text/ảnh chart.
 - **Gợi ý bằng LLM** (tuỳ chọn, model GPT hoặc Gemini): chọn model + số câu, bấm sinh — chỉ gợi ý câu hỏi + đáp án, **không sinh evidence**, kết quả chỉ hiển thị tham khảo, **không tự lưu**. Bấm "Dùng làm mẫu" để nạp vào form bên dưới; vẫn phải tự rà lại từng field, **tự đọc chart/text điền evidence tay**, rồi bấm Lưu mới thực sự tạo câu hỏi.
-- **Form soạn câu hỏi**: câu hỏi, đáp án (+ đáp án tương đương tuỳ chọn), `question_type`/`hop_type`, evidence builder (nguồn chart → chọn ảnh + gõ tay `series`/`x`, có preview ảnh ngay tại chỗ; nguồn text → dán quote nguyên văn từ body_text), `derivation` (bắt buộc khi đáp án là số và thuộc `compositional`/`visual_compositional`). Evidence bắt buộc cho **mọi** câu hỏi — thiếu hoặc quote không khớp nguyên văn sẽ bị chặn lưu.
+- **Form soạn câu hỏi**: câu hỏi, đáp án (+ đáp án tương đương tuỳ chọn), `question_type`/`hop_type`, evidence builder (nguồn chart → chọn ảnh + gõ tay `description` — các bước truy hồi giá trị, đánh số thứ tự, có preview ảnh ngay tại chỗ; nguồn text → dán quote nguyên văn từ body_text), `derivation` (bắt buộc khi đáp án là số và thuộc `compositional`/`visual_compositional`). Evidence bắt buộc cho **mọi** câu hỏi — thiếu hoặc quote không khớp nguyên văn sẽ bị chặn lưu.
 - **Câu hỏi đã có**: nút Sửa (nạp lại vào form, lưu thành version mới), Bỏ (rút, chuyển status `rejected`), xem lịch sử chỉnh sửa (`question_versions`).
-- Cảnh báo nếu document chưa đủ tối thiểu 1 câu `single_chart` + 1 câu multi-hop.
+- Cảnh báo nếu document chưa đủ tối thiểu 1 câu `chart` + 1 câu multi-hop (`text_and_chart`/`charts`).
 
 ### 4. Dashboard
 

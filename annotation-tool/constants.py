@@ -15,8 +15,8 @@ QUESTION_TYPES = [
 # question_type values that require a `derivation` formula when answer_type == "numeric"
 DERIVATION_REQUIRED_TYPES = {"compositional", "visual_compositional"}
 
-HOP_TYPES = ["single_chart", "text_to_chart", "chart_to_chart", "fact_check_dual"]
-MULTI_HOP_TYPES = {"text_to_chart", "chart_to_chart", "fact_check_dual"}
+HOP_TYPES = ["text", "chart", "text_and_chart", "charts"]
+MULTI_HOP_TYPES = {"text_and_chart", "charts"}
 
 ANSWER_TYPES = ["numeric", "text", "unanswerable", "boolean"]
 
