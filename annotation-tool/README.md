@@ -56,7 +56,7 @@ Bảng danh sách toàn bộ document (title, domain, provider, status, split, s
 Trang duy nhất sau khi nhập xong document:
 
 - Chọn document, xem lại title/body_text/ảnh chart.
-- **Gợi ý bằng LLM** (tuỳ chọn): chọn model + số câu, bấm sinh — kết quả chỉ hiển thị tham khảo, **không tự lưu**. Bấm "Dùng làm mẫu" để nạp vào form bên dưới; vẫn phải tự rà lại từng field và bấm Lưu mới thực sự tạo câu hỏi.
+- **Gợi ý bằng LLM** (tuỳ chọn, model GPT hoặc Gemini): chọn model + số câu, bấm sinh — chỉ gợi ý câu hỏi + đáp án, **không sinh evidence**, kết quả chỉ hiển thị tham khảo, **không tự lưu**. Bấm "Dùng làm mẫu" để nạp vào form bên dưới; vẫn phải tự rà lại từng field, **tự đọc chart/text điền evidence tay**, rồi bấm Lưu mới thực sự tạo câu hỏi.
 - **Form soạn câu hỏi**: câu hỏi, đáp án (+ đáp án tương đương tuỳ chọn), `question_type`/`hop_type`, evidence builder (nguồn chart → chọn ảnh + gõ tay `series`/`x`, có preview ảnh ngay tại chỗ; nguồn text → dán quote nguyên văn từ body_text), `derivation` (bắt buộc khi đáp án là số và thuộc `compositional`/`visual_compositional`). Evidence bắt buộc cho **mọi** câu hỏi — thiếu hoặc quote không khớp nguyên văn sẽ bị chặn lưu.
 - **Câu hỏi đã có**: nút Sửa (nạp lại vào form, lưu thành version mới), Bỏ (rút, chuyển status `rejected`), xem lịch sử chỉnh sửa (`question_versions`).
 - Cảnh báo nếu document chưa đủ tối thiểu 1 câu `single_chart` + 1 câu multi-hop.
@@ -120,6 +120,6 @@ Không có `pytest` trong requirements — mỗi file test tự chạy được 
 Đã xong đủ 5 trang (nhập document → quản lý document → soạn câu hỏi → dashboard → export), có test cho từng trang. Không có bước xác minh chéo/phân xử — thay bằng version history (`question_versions`) ghi lại mỗi lần tạo/sửa/rút câu hỏi. Việc còn lại trước khi dùng cho pilot thật:
 
 - [ ] Điền danh sách người thật vào `scripts/seed_users.py` (đang là placeholder `pod_a_1`, `pod_b_1`...)
-- [ ] Điền API key thật vào `.streamlit/secrets.toml`, thử gọi thật cả 3 model VLM (chưa test được trong môi trường dev vì không có key)
+- [ ] Điền API key thật vào `.streamlit/secrets.toml`, thử gọi thật cả 2 model VLM (chưa test được trong môi trường dev vì không có key)
 - [ ] Deploy lên server/VPS thật + cấu hình backup cron
 - [ ] Chạy thử với 1-2 document thật (không phải dữ liệu test) để annotator góp ý UI trước khi bắt đầu pilot diện rộng

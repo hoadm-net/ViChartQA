@@ -6,6 +6,7 @@ annotator gõ tay (xem docs/02). Không có bước xác minh chéo/phân xử: 
 tạo/sửa/rút một câu hỏi được ghi lại ở question_versions (xem versioning.py).
 """
 
+import base64
 from pathlib import Path
 
 import streamlit as st
@@ -20,6 +21,17 @@ from versioning import record_version
 from vlm_client import VLMError, generate_candidates
 
 ANNOTATION_ROOT = Path(__file__).resolve().parent.parent  # chart.image_path lưu tương đối gốc này (xem pages/1)
+
+_MIME_BY_SUFFIX = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
+
+
+def _image_data_uri(path: Path) -> str | None:
+    """Base64-encode 1 ảnh chart để gửi cho LLM multimodal — None nếu file không đọc được,
+    khi đó gợi ý LLM cho chart này chỉ còn dựa vào chart_type (xem vlm_client.py)."""
+    if not path.exists():
+        return None
+    mime = _MIME_BY_SUFFIX.get(path.suffix.lower(), "image/png")
+    return f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode('ascii')}"
 
 require_login()
 st.title("✍️ Soạn câu hỏi")
@@ -93,8 +105,9 @@ if charts:
 st.divider()
 st.subheader("🤖 Gợi ý câu hỏi bằng LLM")
 st.caption(
-    'Chỉ để tham khảo — không tự lưu vào dataset. Bấm "Dùng làm mẫu" để nạp vào form '
-    "soạn câu hỏi bên dưới rồi tự rà lại từng field trước khi Lưu."
+    "Chỉ gợi ý câu hỏi + đáp án, không sinh evidence — annotator luôn tự đọc chart/text "
+    'và điền evidence tay để giảm sai lệch. Bấm "Dùng làm mẫu" để nạp vào form soạn câu '
+    "hỏi bên dưới rồi tự rà lại từng field, tự điền evidence, trước khi Lưu."
 )
 col1, col2 = st.columns([1, 3])
 with col1:
@@ -103,8 +116,12 @@ with col1:
 
 if st.button("Sinh gợi ý"):
     charts_payload = [
-        {"chart_id": c["chart_id"], "chart_type": next(ch.chart_type for ch in charts if ch.chart_id == c["chart_id"])}
-        for c in charts_by_id.values()
+        {
+            "chart_id": c.chart_id,
+            "chart_type": c.chart_type,
+            "image_data_uri": _image_data_uri(ANNOTATION_ROOT / c.image_path),
+        }
+        for c in charts
     ]
     seed_questions = [q["question_text"] for q in questions_display]
     try:
@@ -117,29 +134,12 @@ if st.button("Sinh gợi ý"):
         st.error(f"Lỗi gọi {model}: {exc}")
 
 suggestions = st.session_state.get("llm_suggestions") or []
-chart_id_by_label = {c["chart_id"]: cid for cid, c in charts_by_id.items()}
 for i, sug in enumerate(suggestions):
     title = f"Gợi ý #{i + 1} [{sug.get('question_type')}/{sug.get('hop_type')}] {str(sug.get('question', ''))[:70]}"
     with st.expander(title):
         st.write(f"**Câu hỏi:** {sug.get('question', '')}")
         st.write(f"**Đáp án đề xuất:** {sug.get('answer', '')}")
-        st.write("**Evidence đề xuất:**")
-        st.json(sug.get("evidence") or [])
         if st.button("Dùng làm mẫu", key=f"use_sug_{i}"):
-            resolved_evidence = []
-            for j, ev in enumerate(sug.get("evidence") or []):
-                if ev.get("source") == "chart":
-                    resolved_evidence.append(
-                        {
-                            "hop": j + 1,
-                            "source": "chart",
-                            "chart_id": chart_id_by_label.get(ev.get("chart_id")),
-                            "series": ev.get("series"),
-                            "x": ev.get("x") or [],
-                        }
-                    )
-                else:
-                    resolved_evidence.append({"hop": j + 1, "source": "text", "quote": ev.get("quote", "")})
             st.session_state["workspace_form_initial"] = {
                 "question_text": sug.get("question", ""),
                 "answer": str(sug.get("answer", "")),
@@ -148,7 +148,6 @@ for i, sug in enumerate(suggestions):
                 "hop_type": sug.get("hop_type"),
                 "derivation": sug.get("derivation"),
                 "choices": sug.get("choices"),
-                "evidence": resolved_evidence,
             }
             st.session_state["workspace_form_gen"] = st.session_state.get("workspace_form_gen", 0) + 1
             st.rerun()

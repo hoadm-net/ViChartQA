@@ -64,7 +64,7 @@ Ví dụ tốt/xấu chi tiết ở [docs/03](03-annotation-guidelines.md).
 ## Quy trình gán nhãn (tổng quan)
 
 1. **Đọc document** — xác định số liệu/claim chỉ có trong text, không vẽ trên chart nào (nguyên liệu cho `text_to_chart`/`fact_check_dual`).
-2. **Soạn câu hỏi** — gợi ý bằng LLM (chỉ tham khảo, không tự lưu) + tự viết/sửa qua form, tối thiểu 1 multi-hop + 1 `single_chart`/document, mọi câu đều kèm `evidence` đầy đủ (công cụ chặn lưu nếu thiếu/sai).
+2. **Soạn câu hỏi** — gợi ý bằng LLM (chỉ câu hỏi + đáp án, không sinh `evidence`, chỉ tham khảo, không tự lưu) + tự viết/sửa qua form, tối thiểu 1 multi-hop + 1 `single_chart`/document. `evidence` luôn do annotator tự đọc chart/text rồi điền tay — kể cả câu hỏi bắt nguồn từ gợi ý LLM — công cụ chặn lưu nếu thiếu/sai.
 3. **Sửa/rút khi cần** — không có bước xác minh chéo độc lập; mỗi lần tạo/sửa/rút một câu hỏi được ghi lại thành một bản snapshot (version history) làm audit trail.
 
 Quy trình đầy đủ ở [docs/03](03-annotation-guidelines.md).

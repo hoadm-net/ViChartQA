@@ -55,7 +55,6 @@ SPLITS = ["train", "val", "test"]
 VLM_MODEL_SLUGS = {
     "gpt-5.4-nano": "openai/gpt-5.4-nano",
     "gemini-3.1-flash-lite": "google/gemini-3.1-flash-lite",
-    "qwen3-vl-235b": "qwen/qwen3-vl-235b-a22b-instruct",
 }
 VLM_MODELS = list(VLM_MODEL_SLUGS.keys())
 

@@ -511,7 +511,9 @@ def test_page3_reject_question_marks_rejected_with_version(doc_id: int, user_id:
 
 def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_id: int):
     """Gợi ý LLM chỉ hiển thị tham khảo — không được tự lưu vào questions; chỉ khi
-    annotator bấm "Lưu câu hỏi" trên form (sau khi "Dùng làm mẫu") mới tạo bản ghi."""
+    annotator bấm "Lưu câu hỏi" trên form (sau khi "Dùng làm mẫu") mới tạo bản ghi.
+    LLM không sinh evidence (xem vlm_client.py) — "Dùng làm mẫu" chỉ nạp câu
+    hỏi/đáp án, evidence builder phải trống, annotator tự điền tay mới lưu được."""
     at = AppTest.from_file(str(ROOT / "pages" / "3_question_workspace.py"))
     at.session_state["user"] = type("U", (), {"id": user_id})()
     at.run(timeout=15)
@@ -529,7 +531,6 @@ def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_i
             "hop_type": "single_chart",
             "derivation": "",
             "choices": None,
-            "evidence": [{"source": "text", "quote": "GDP tăng dần theo thời gian."}],
         }
     ]
     at.run(timeout=15)
@@ -550,6 +551,31 @@ def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_i
         at.session_state["workspace_form_initial"]["question_text"]
         == "Bài viết mô tả xu hướng GDP như thế nào?"
     )
+    assert "evidence" not in at.session_state["workspace_form_initial"], "gợi ý LLM không được kèm evidence"
+
+    # evidence builder mặc định trống (nguồn "chart", series/x rỗng) — Lưu ngay phải bị chặn
+    save_btn = next(b for b in at.button if b.label == "Lưu câu hỏi")
+    save_btn.click()
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+    assert at.error, "thiếu evidence phải bị chặn lưu ngay cả khi câu hỏi đến từ gợi ý LLM"
+
+    with get_session() as s:
+        assert (
+            s.scalars(
+                select(Question).where(
+                    Question.document_id == doc_id,
+                    Question.question_text == "Bài viết mô tả xu hướng GDP như thế nào?",
+                )
+            ).first()
+            is None
+        )
+
+    # annotator tự điền evidence tay rồi mới lưu được
+    text_inputs = {ti.label: ti for ti in at.text_input}
+    text_inputs["Series/chiều dữ liệu (vd. tên đường/cột trên chart)"].set_value("GDP")
+    text_inputs["Giá trị/nhãn trục x (phân cách bằng dấu phẩy nếu nhiều)"].set_value("2011, 2021")
+    at.run(timeout=15)
 
     save_btn = next(b for b in at.button if b.label == "Lưu câu hỏi")
     save_btn.click()
@@ -563,7 +589,7 @@ def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_i
                 Question.question_text == "Bài viết mô tả xu hướng GDP như thế nào?",
             )
         ).first()
-        assert q is not None, "explicit Lưu sau khi Dùng làm mẫu phải tạo được câu hỏi"
+        assert q is not None, "explicit Lưu sau khi tự điền evidence phải tạo được câu hỏi"
         assert q.status == "active"
     assert "workspace_form_initial" not in at.session_state
 
