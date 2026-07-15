@@ -33,7 +33,7 @@ Tuần 3-4, song song annotation:
   - Theo domain thực tế đạt được.
   - Theo `question_type` (7 giá trị) — xác định nhóm khó nhất.
   - Theo `hop_type` — `single_chart` vs `text_to_chart`/`chart_to_chart`/`fact_check_dual`, bằng chứng số liệu cho claim "multi-hop khó hơn chart-only".
-  - Theo độ phức tạp chart (`simple`/`complex`).
+  - Theo `chart_type` — đơn (`bar`/`line`/`pie`) vs `combo` vs `subplot`.
 
 ## Metric đánh giá
 

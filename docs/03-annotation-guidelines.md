@@ -102,7 +102,7 @@ Thiếu evidence (rỗng) hoặc quote không khớp nguyên văn `body_text` = 
 
 ### 1. Đọc document
 
-Đọc title + body_text trước, ghi chú số liệu/claim chỉ xuất hiện trong text (nguyên liệu cho `text_to_chart`/`fact_check_dual`) và quan sát từng chart (loại, độ phức tạp).
+Đọc title + body_text trước, ghi chú số liệu/claim chỉ xuất hiện trong text (nguyên liệu cho `text_to_chart`/`fact_check_dual`) và quan sát từng chart (loại: đơn/`combo`/`subplot`).
 
 ### 2. Soạn câu hỏi
 

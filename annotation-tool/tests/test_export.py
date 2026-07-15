@@ -37,7 +37,6 @@ def _make_document(session, domain="economics", n_questions=1, question_status="
         chart_id="fig1",
         image_path="images/x.png",
         chart_type="line",
-        chart_complexity="simple",
     )
     session.add(chart)
     session.flush()

@@ -322,7 +322,6 @@ def _make_throwaway_document_with_question(user_id: int) -> tuple[int, int]:
                 chart_id="fig1",
                 image_path="data/images/does_not_matter.png",
                 chart_type="line",
-                chart_complexity="simple",
             )
         )
         q = Question(

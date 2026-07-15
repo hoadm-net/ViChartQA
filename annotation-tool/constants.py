@@ -20,11 +20,13 @@ MULTI_HOP_TYPES = {"text_to_chart", "chart_to_chart", "fact_check_dual"}
 
 ANSWER_TYPES = ["numeric", "text", "unanswerable", "boolean"]
 
-# "subplot" = 1 ảnh ghép nhiều panel khác loại chart (vd pie + bar cạnh nhau) — không
-# tách chart_id riêng cho từng panel (ảnh không có nhãn (a)/(b) để phân biệt, model đọc
-# ảnh cũng không biết đâu là đâu), coi cả ảnh là 1 chart entry, type="subplot".
-CHART_TYPES = ["bar", "line", "pie", "stacked_bar", "grouped_bar", "multi_line", "subplot"]
-CHART_COMPLEXITY = ["simple", "complex"]
+# "combo" = 1 vùng vẽ trộn từ 2 loại mark trở lên (vd cột doanh thu + đường tăng trưởng,
+# grouped/stacked bar kèm 1 hoặc nhiều đường) — khác "subplot" ở chỗ vẫn chỉ 1 vùng vẽ,
+# không tách nhiều panel. "subplot" = 1 ảnh ghép nhiều panel khác loại chart (vd pie +
+# bar cạnh nhau) — không tách chart_id riêng cho từng panel (ảnh không có nhãn (a)/(b)
+# để phân biệt, model đọc ảnh cũng không biết đâu là đâu), coi cả ảnh là 1 chart entry,
+# type="subplot".
+CHART_TYPES = ["bar", "line", "pie", "combo", "subplot"]
 
 MAX_BODY_TEXT_WORDS = 2000  # xem docs/02 §Phạm vi
 

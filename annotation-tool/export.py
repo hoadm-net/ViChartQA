@@ -92,7 +92,6 @@ def _export_document(doc: Document) -> dict | None:
                 "chart_id": c.chart_id,
                 "image": c.image_path,
                 "chart_type": c.chart_type,
-                "chart_complexity": c.chart_complexity,
             }
             for c in charts
         ],

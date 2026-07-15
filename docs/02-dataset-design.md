@@ -3,7 +3,7 @@
 ## Phạm vi
 
 - **Đơn vị dữ liệu:** document = `{title, body_text, charts: [1..3 ảnh]}`, lấy từ một bài viết/báo cáo thật, dưới 2.000 từ.
-- **Loại ảnh chart:** bar, line, pie, stacked/grouped bar, multi-line, subplot — không nhận infographic, dashboard, hay bảng số liệu thuần text.
+- **Loại ảnh chart (`chart_type`):** `bar`, `line`, `pie` (đơn — 1 loại mark, kể cả khi có stack/group nhiều chuỗi), `combo` (1 vùng vẽ trộn từ 2 loại mark trở lên, vd cột doanh thu + đường tăng trưởng, thực tế gặp rất nhiều), `subplot` (nhiều panel trong 1 ảnh) — không nhận infographic, dashboard, hay bảng số liệu thuần text.
 - **Ảnh có subplot:** nếu 1 ảnh là hình ghép nhiều panel khác loại chart (vd pie cạnh bar), coi cả ảnh là **1 chart entry**, `chart_type: "subplot"` — không tách nhãn theo từng panel vì bản thân ảnh không có nhãn (a)/(b) để phân biệt, tách ra chỉ tạo id ảo mà việc đọc ảnh (kể cả model) không dùng được.
 - **`body_text` là toàn văn bài báo** (không cắt đoạn) — vì có câu hỏi chỉ dựa vào thông tin trong text mà không chart nào vẽ ra, cắt bớt sẽ mất nguyên liệu cho `text_to_chart`/`fact_check_dual`. Bỏ hẳn phần bài không liên quan tới chủ đề đang khai thác. Chèn placeholder `[CHART 1]`, `[CHART 2]`... vào đúng vị trí từng chart xuất hiện trong bài, theo đúng thứ tự — vừa neo chart vào đúng mạch bài (khỏi cần tách nhãn subplot), vừa là quy ước duy nhất nối `body_text` với `charts[]` theo thứ tự.
 - **Ngôn ngữ:** tiêu đề, body_text, nhãn/chú thích trên chart phải là tiếng Việt gốc (không dịch từ tiếng Anh).
@@ -106,8 +106,8 @@ Tỷ lệ ~77%/10%/13% (như ChartQA gốc), chia theo document (không theo câ
     "accessed_date": "2026-07-20"
   },
   "charts": [
-    { "chart_id": "fig1", "image": "images/a3f5c1d8e2b04f91.png", "chart_type": "line", "chart_complexity": "simple" },
-    { "chart_id": "fig2", "image": "images/9b1e7a04cc3d5f22.png", "chart_type": "subplot", "chart_complexity": "complex" }
+    { "chart_id": "fig1", "image": "images/a3f5c1d8e2b04f91.png", "chart_type": "line" },
+    { "chart_id": "fig2", "image": "images/9b1e7a04cc3d5f22.png", "chart_type": "subplot" }
   ],
   "qa": [
     {
@@ -158,7 +158,7 @@ Tỷ lệ ~77%/10%/13% (như ChartQA gốc), chia theo document (không theo câ
 }
 ```
 
-Trường `chart_complexity` (`simple`/`complex`): quan sát trực quan trên ảnh — ít chuỗi/nhãn (2 cột dữ liệu tương đương) = simple, nhiều chuỗi/nhãn = complex; annotator tự đánh giá, không dựa vào bảng số liệu nào. `evidence` bắt buộc với **mọi** câu hỏi (không riêng multi-hop) — không có bước xác minh chéo độc lập nên đây là chốt kiểm chứng còn lại. `equivalent_answers`: danh sách rỗng nếu không có biến thể nào khác được chấp nhận.
+`evidence` bắt buộc với **mọi** câu hỏi (không riêng multi-hop) — không có bước xác minh chéo độc lập nên đây là chốt kiểm chứng còn lại. `equivalent_answers`: danh sách rỗng nếu không có biến thể nào khác được chấp nhận.
 
 `derivation`: bắt buộc khi `answer_type: numeric` và `question_type` là `compositional`/`visual_compositional` có tính toán — công thức số học thuần dùng đúng số annotator đọc được từ chart (vd. `"8.4 - 2.5"`), trống `""` với loại còn lại. Dùng để đối chiếu tự động với `answer` lúc soạn.
 

@@ -16,7 +16,7 @@ from pathlib import Path
 import streamlit as st
 
 from auth import current_user, require_login
-from constants import CHART_COMPLEXITY, CHART_TYPES, DOMAINS, MAX_BODY_TEXT_WORDS
+from constants import CHART_TYPES, DOMAINS, MAX_BODY_TEXT_WORDS
 from db import get_session
 from models import Chart, Document
 from validation import check_chart_placeholders, word_count
@@ -49,16 +49,12 @@ chart_meta = []
 if uploaded_files:
     for i, f in enumerate(uploaded_files[:3]):
         st.markdown(f"**[CHART {i + 1}]** — {f.name}")
-        c_img, c_type, c_complexity = st.columns([1, 1, 1])
+        c_img, c_type = st.columns([1, 1])
         with c_img:
             st.image(f, width=180)
         with c_type:
             chart_type = st.selectbox(f"Loại chart #{i + 1}", CHART_TYPES, key=k(f"type_{i}"))
-        with c_complexity:
-            complexity = st.selectbox(f"Độ phức tạp #{i + 1}", CHART_COMPLEXITY, key=k(f"complexity_{i}"))
-        chart_meta.append(
-            {"file": f, "chart_id": f"fig{i + 1}", "chart_type": chart_type, "chart_complexity": complexity}
-        )
+        chart_meta.append({"file": f, "chart_id": f"fig{i + 1}", "chart_type": chart_type})
 
 body_text = st.text_area(
     "Body text — TOÀN VĂN bài báo, chèn [CHART N] tại đúng vị trí chart N xuất hiện",
@@ -129,7 +125,6 @@ if st.button("Lưu document", type="primary", key=k("submit")):
                         chart_id=meta["chart_id"],
                         image_path=str(image_path.relative_to(IMAGES_DIR.parent.parent)),
                         chart_type=meta["chart_type"],
-                        chart_complexity=meta["chart_complexity"],
                     )
                 )
             session.commit()
