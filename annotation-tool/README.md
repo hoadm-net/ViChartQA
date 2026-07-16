@@ -2,6 +2,8 @@
 
 Streamlit + SQLite — công cụ nội bộ để nạp document và soạn câu hỏi cho bộ dữ liệu ViChartQA.
 
+**Annotator mới đọc [NOTES.md](NOTES.md) trước** — bản rút gọn giải thích question_type/hop_type/evidence/quy ước thu thập bài, dễ vào việc hơn đọc thẳng [docs/](../docs/).
+
 ## Cài đặt
 
 ```bash
