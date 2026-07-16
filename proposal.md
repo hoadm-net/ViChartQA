@@ -122,44 +122,43 @@ Nhằm đảm bảo bộ dữ liệu đạt tiêu chuẩn nộp các hội ngh�
 
 ```mermaid
 graph TD
-    %% Định dạng CSS cho từng cụm
-    classDef podA fill:#dae8fc,stroke:#6c8ebf;
-    classDef podB fill:#d5e8d4,stroke:#82b366;
-    classDef review fill:#ffe6cc,stroke:#d79b00;
-    classDef audit fill:#f8cecc,stroke:#b85450,stroke-width:2px;
-    classDef pass fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,font-weight:bold;
+    classDef podA fill:#dae8fc,stroke:#6c8ebf,color:#000;
+    classDef podB fill:#d5e8d4,stroke:#82b366,color:#000;
+    classDef review fill:#ffe6cc,stroke:#d79b00,color:#000;
+    classDef audit fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#000;
+    classDef pass fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,font-weight:bold,color:#000;
+    classDef state fill:#f5f5f5,stroke:#666,stroke-dasharray: 5 5,color:#333;
 
     P1["Pod A: Thu thập web"]:::podA --> P2["Pod B: Annotator gán nhãn"]:::podB
     
-    subgraph "Giai đoạn 1: Đánh giá & Kiểm định"
-        P3["Pod C: Reviewer<br>(Check 50% dataset)"]:::review
-        P4["QC<br>(Check toàn bộ câu khó)"]:::review
-    end
-
-    P2 -->|"Câu thường"| P3
-    P2 -->|"Câu khó"| P4
+    P2 -->|"Câu thường"| P3["Pod C: Reviewer<br>(Check 50%)"]:::review
+    P2 -->|"Câu khó"| P4["QC<br>(Check toàn bộ câu khó)"]:::review
     
-    subgraph "Giai đoạn 2: Giải quyết Bất đồng"
-        P5["Audit<br>(Phán quyết cuối cùng)"]:::audit
-    end
+    %% Trạng thái trung gian để gom nhánh (tránh rối text đè lên đường kẻ)
+    S_Error("Lỗi / Yêu cầu sửa"):::state
+    S_Disagree("Bất đồng đánh giá"):::state
+    S_Agree("Đồng thuận"):::state
 
-    P3 -->|"Bất đồng"| P5
-    P4 -->|"Bất đồng"| P5
-    
-    subgraph "Giai đoạn 3: Nghiệm thu"
-        P6["Passed"]:::pass
-        P7["Xuất file dữ liệu chuẩn"]:::pass
-    end
+    %% Gom nhánh Lỗi
+    P3 -.-> S_Error
+    P4 -.-> S_Error
+    S_Error -.-> P2
 
-    P3 -->|"Đồng thuận"| P6
-    P4 -->|"Đồng thuận"| P6
-    P5 -->|"Chốt phán quyết"| P6
-    P6 --> P7
-    
-    %% Vòng lặp phản hồi (Feedback)
-    P3 -.->|"Lỗi / Góp ý"| P2
-    P4 -.->|"Lỗi / Góp ý"| P2
+    %% Gom nhánh Bất đồng
+    P3 --> S_Disagree
+    P4 --> S_Disagree
+    S_Disagree --> P5["Audit<br>(Phán quyết cuối cùng)"]:::audit
+
+    %% Nhánh Audit phản hồi
     P5 -.->|"Yêu cầu sửa lại"| P2
+
+    %% Gom nhánh Đồng thuận
+    P3 --> S_Agree
+    P4 --> S_Agree
+    S_Agree --> P6["Passed"]:::pass
+    P5 -->|"Chốt phán quyết"| P6
+    
+    P6 --> P7["Xuất file dữ liệu chuẩn"]:::pass
 ```
 
 **Phân bổ nhân sự & Nhiệm vụ chi tiết (10 thành viên):**
