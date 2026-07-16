@@ -21,3 +21,8 @@ trigger: always_on
 
    - During task execution, any test scripts, test outputs, or temporary files MUST be saved strictly in the `test` directory.
    - When the task is finished, you must completely delete these temporary/test files, EXCEPT for those test files that have long-term reusable value.
+5. **Mandatory Knowledge Wake-up**
+
+   - Before executing any user request, you MUST first run knowledge checks (e.g., using `ctx_knowledge(action="wakeup")` or reviewing KI summaries) to read all historical notes and policies for this project.
+   - Never skip this step; ensuring alignment with past decisions and project context is the highest priority.
+
