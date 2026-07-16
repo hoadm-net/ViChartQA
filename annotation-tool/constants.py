@@ -53,11 +53,8 @@ SPLITS = ["train", "val", "test"]
 # trực tiếp qua https://openrouter.ai/api/v1/models ngày 13/07/2026 (đều hỗ trợ
 # response_format/structured_outputs, cần cho JSON output của generate_candidates()).
 VLM_MODEL_SLUGS = {
-    "gpt-5.4-nano": "gpt-5.4-nano",
-    "gpt-5.6-luna": "gpt-5.6-luna",
+    "gpt-5.4-nano": "openai/gpt-5.4-nano",
     "gemini-3.1-flash-lite": "google/gemini-3.1-flash-lite",
-    "qwen3-vl-235b": "qwen/qwen3-vl-235b-a22b-instruct",
-    "nemotron-3.5-content-safety:free": "nvidia/nemotron-3.5-content-safety:free",
 }
 VLM_MODELS = list(VLM_MODEL_SLUGS.keys())
 
