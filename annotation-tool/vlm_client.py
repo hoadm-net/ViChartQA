@@ -10,6 +10,7 @@ description/quote.
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 
@@ -22,6 +23,7 @@ _PLACEHOLDER_RE = re.compile(r"\[CHART (\d+)\]")
 SYSTEM_PROMPT = """Bạn là annotator sinh câu hỏi cho bộ dữ liệu ViChartQA (Hỏi-Đáp biểu đồ tiếng Việt,
 multi-hop reasoning trên text + chart). Nhiệm vụ: đọc 1 document (title + body_text + danh sách chart
 kèm loại biểu đồ), sinh thêm các câu hỏi ứng viên rải đều theo 2 chiều taxonomy sau, KHÔNG trùng các câu đã có.
+BẠN BẮT BUỘC PHẢI TRẢ VỀ KẾT QUẢ DƯỚI DẠNG ĐỊNH DẠNG JSON.
 
 Chiều 1 — question_type ({n_question_types} giá trị): {question_types}
 Chiều 2 — hop_type ({n_hop_types} giá trị): {hop_types}
@@ -113,7 +115,14 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 def _call_openrouter(model_slug: str, system: str, user_content: list[dict]) -> str:
     from openai import OpenAI
 
-    client = OpenAI(api_key=st.secrets["OPENROUTER_API_KEY"], base_url=OPENROUTER_BASE_URL)
+    if model_slug in ["gpt-5.4-nano", "gpt-5.6-luna"]:
+        base_url = st.secrets.get("SHOPAIKEY_BASE_URL", "https://direct.shopaikey.com/v1")
+        api_key = st.secrets.get("SHOPAIKEY_API_KEY")
+    else:
+        base_url = st.secrets.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        api_key = st.secrets.get("OPENROUTER_API_KEY")
+
+    client = OpenAI(api_key=api_key, base_url=base_url)
     resp = client.chat.completions.create(
         model=model_slug,
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user_content}],
