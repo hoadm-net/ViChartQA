@@ -229,6 +229,38 @@ def test_page1_subplot_image_creates_one_chart_with_subplot_type(user_id: int):
         assert charts[0].chart_type == "subplot"
 
 
+def test_page1_warns_on_duplicate_title_without_blocking_save(doc_id: int, user_id: int):
+    """Nhiều annotator thu thập bài độc lập — title gần giống 1 document đã có (doc_id,
+    title "Bài test GDP 2011-2021") phải bị cảnh báo, nhưng vẫn lưu được (warn, không
+    chặn) — xem dedup.py."""
+    at = AppTest.from_file(str(ROOT / "pages" / "1_document_intake.py"))
+    at.session_state["user"] = type("U", (), {"id": user_id})()
+    at.run(timeout=15)
+
+    at.text_input[0].set_value("Bài test GDP 2011-2021 (bản khác)")
+    at.file_uploader[0].upload("fig1.png", _png_bytes(), "image/png")
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+    assert any(f"#{doc_id}" in w.value for w in at.warning), "expected a duplicate-title warning referencing doc_id"
+
+    at.text_area[0].set_value("Nội dung khác. [CHART 1]")
+    text_inputs = {ti.label: ti for ti in at.text_input}
+    text_inputs["Provider (vd. CafeF, GSO)"].set_value("TestProvider")
+    at.run(timeout=15)
+
+    with get_session() as s:
+        before_count = len(s.scalars(select(Document)).all())
+
+    save_btn = next(b for b in at.button if b.label == "Lưu document")
+    save_btn.click()
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+
+    with get_session() as s:
+        after_count = len(s.scalars(select(Document)).all())
+    assert after_count == before_count + 1, "duplicate-title warning should not block save"
+
+
 def test_page2_document_manager_lists_and_shows_selected_document(doc_id: int, user_id: int):
     at = AppTest.from_file(str(ROOT / "pages" / "2_document_manager.py"))
     at.session_state["user"] = type("U", (), {"id": user_id, "role": "annotator"})()
@@ -300,6 +332,42 @@ def test_page2_document_manager_edit_blocked_by_placeholder_mismatch(doc_id: int
 
     with get_session() as s:
         assert s.get(Document, doc_id).title == title_before, "document should not be saved when validation fails"
+
+
+def test_page2_document_manager_edit_warns_on_duplicate_without_blocking_save(user_id: int):
+    """2 document trùng nhau (title trùng hệt ngay từ đầu do dùng chung fixture; URL
+    trùng sau khi sửa tay) — cả 2 kiểu cảnh báo phải hiện ra, nhưng không chặn lưu."""
+    doc_a_id, _ = _make_throwaway_document_with_question(user_id)
+    doc_b_id, _ = _make_throwaway_document_with_question(user_id)
+    with get_session() as s:
+        s.get(Document, doc_a_id).source_url = "https://example.vn/bai-trung"
+        s.commit()
+
+    at = AppTest.from_file(str(ROOT / "pages" / "2_document_manager.py"))
+    at.session_state["user"] = type("U", (), {"id": user_id, "role": "pm"})()
+    at.run(timeout=15)
+    _select_doc_manager_row(at, doc_b_id)
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+    # doc_a và doc_b dùng chung fixture nên title trùng hệt ngay từ đầu, chưa cần sửa gì
+    assert any(f"#{doc_a_id}" in w.value for w in at.warning), "expected a duplicate-title warning referencing doc_a_id"
+
+    text_inputs = {ti.label: ti for ti in at.text_input}
+    text_inputs["URL"].set_value("https://example.vn/bai-trung")
+    at.run(timeout=15)
+    assert any(f"#{doc_a_id}" in e.value for e in at.error), "expected a duplicate-URL error referencing doc_a_id"
+
+    save_btn = next(b for b in at.button if b.label == "Lưu thay đổi")
+    save_btn.click()
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+
+    with get_session() as s:
+        assert s.get(Document, doc_b_id).source_url == "https://example.vn/bai-trung", (
+            "duplicate warning/error should not block save"
+        )
+        delete_document(s, doc_a_id)
+        delete_document(s, doc_b_id)
 
 
 def _make_throwaway_document_with_question(user_id: int) -> tuple[int, int]:
@@ -635,6 +703,8 @@ if __name__ == "__main__":
     print("PASS test_page1_missing_placeholder")
     test_page1_subplot_image_creates_one_chart_with_subplot_type(user_id)
     print("PASS test_page1_subplot")
+    test_page1_warns_on_duplicate_title_without_blocking_save(doc_id, user_id)
+    print("PASS test_page1_duplicate_warning")
 
     test_page2_document_manager_lists_and_shows_selected_document(doc_id, user_id)
     print("PASS test_page2_document_manager_list")
@@ -644,6 +714,8 @@ if __name__ == "__main__":
     print("PASS test_page2_document_manager_edit")
     test_page2_document_manager_edit_blocked_by_placeholder_mismatch(doc_id, pm_id)
     print("PASS test_page2_document_manager_edit_blocked")
+    test_page2_document_manager_edit_warns_on_duplicate_without_blocking_save(user_id)
+    print("PASS test_page2_document_manager_duplicate_warning")
     test_documents_delete_document_cascades_in_dependency_order(user_id)
     print("PASS test_documents_delete_document_cascade")
     test_page2_document_manager_delete_button_requires_pm(pm_id, user_id)

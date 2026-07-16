@@ -43,11 +43,13 @@ Mặc định chạy ở `localhost:8501`. Deploy thật chạy trên server/VPS
 
 Title + toàn văn body_text (chèn `[CHART N]` đúng vị trí từng chart xuất hiện trong bài) + tối đa 3 ảnh chart — ảnh tự đặt tên theo hash, preview ngay khi upload. Điền nguồn (provider/domain/url) — ngày truy cập tự động = hôm nay.
 
+Vừa gõ title/URL, công cụ tự so với toàn bộ document đã có trong DB và **cảnh báo** (không chặn lưu) nếu nghi trùng — URL trùng hệt, title trùng hệt, hoặc title tương đồng cao (báo đăng lại bài của nhau, sửa vài chữ). Hữu ích khi nhiều annotator cùng thu thập bài độc lập với nhau — xem `dedup.py`.
+
 ### 2. Quản lý document
 
 Bảng danh sách toàn bộ document (title, domain, provider, status, split, số chart, số câu hỏi, người tạo) — bấm 1 dòng để xem chi tiết bên dưới.
 
-- **Sửa** (chỉ role `pm`/`data_intake`): title, body_text (re-validate `[CHART N]` khớp số chart, giống lúc nhập), provider, domain, URL. `status`/`split`/ngày truy cập không sửa tay được — do workflow/export tự quản lý.
+- **Sửa** (chỉ role `pm`/`data_intake`): title, body_text (re-validate `[CHART N]` khớp số chart, giống lúc nhập), provider, domain, URL — cũng tự cảnh báo trùng URL/title như lúc nhập (loại trừ chính document đang sửa). `status`/`split`/ngày truy cập không sửa tay được — do workflow/export tự quản lý.
 - **Xoá** (chỉ role `pm`): nút 🗑️ ngay trong cột action của bảng danh sách, bấm mở modal xác nhận nêu rõ tên document + số câu hỏi sẽ mất, phải bấm xác nhận lần 2 mới xoá thật. Xoá thì xoá luôn toàn bộ câu hỏi/evidence/lịch sử liên quan (`documents.delete_document()`), không thể hoàn tác.
 - Role khác chỉ xem được, không có nút Sửa và không thấy cột action Xoá.
 
@@ -82,6 +84,8 @@ validation.py            # logic thuần Python: evidence không rỗng + quote 
 versioning.py              # logic thuần Python: snapshot_question/record_version (question_versions)
 documents.py                 # logic thuần Python: delete_document() — xoá document theo
                                # đúng thứ tự phụ thuộc để không vỡ FK (xem docstring)
+dedup.py                       # logic thuần Python: find_duplicates() — cảnh báo URL/title
+                                 # trùng hoặc gần giống khi nhập/sửa document (không chặn lưu)
 question_ui.py                 # widget Streamlit dùng chung: evidence builder, form soạn câu hỏi
                                   # (pages/3 gọi lại, không định nghĩa lại)
 vlm_client.py                     # gọi model qua OpenRouter, parse response thành gợi ý tham khảo
@@ -100,6 +104,7 @@ tests/
   test_validation.py    # unit test cho validation.py
   test_vlm_client.py       # unit test cho phần parse response (không gọi API thật)
   test_export.py             # unit test cho export.py
+  test_dedup.py                # unit test cho dedup.py
   test_app_flow.py             # integration test — lái thật từng trang qua
                                   # streamlit.testing.v1.AppTest (không chỉ import-check)
 ```
@@ -110,6 +115,7 @@ tests/
 python tests/test_validation.py
 python tests/test_vlm_client.py
 python tests/test_export.py
+python tests/test_dedup.py
 python tests/test_app_flow.py   # dùng DB riêng (tests/_test.db), an toàn chạy lại nhiều lần
 ```
 

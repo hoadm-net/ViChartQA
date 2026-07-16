@@ -14,6 +14,7 @@ from sqlalchemy import select
 from auth import current_user, require_login
 from constants import DOMAINS, MAX_BODY_TEXT_WORDS
 from db import get_session
+from dedup import find_duplicates
 from documents import delete_document
 from models import Document, User
 from validation import check_chart_placeholders, word_count
@@ -155,7 +156,21 @@ if can_edit:
     gen = st.session_state.setdefault("docmgr_form_gen", 0)
     k = lambda name: f"docmgr_{name}_{doc_id}_{gen}"  # noqa: E731 — reset widget keys after mỗi lần lưu
 
+    # Cảnh báo (không chặn lưu) ngay tại field title/URL nếu nghi trùng document khác
+    # — dừng sớm thay vì phát hiện sau khi đã sửa xong cả body_text (xem dedup.py).
+    with get_session() as session:
+        existing_docs = [
+            {"id": d.id, "title": d.title, "source_url": d.source_url} for d in session.scalars(select(Document)).all()
+        ]
+
     new_title = st.text_input("Title", value=doc_data["title"], key=k("title"))
+    if new_title.strip():
+        for m in find_duplicates(new_title, None, existing_docs, exclude_id=doc_id)[:5]:
+            if m.reason == "title_exact":
+                st.warning(f"⚠️ Title trùng hệt document #{m.document_id} — \"{m.title[:70]}\"")
+            else:
+                st.warning(f"⚠️ Title khá giống document #{m.document_id} ({m.score:.0%} tương đồng) — \"{m.title[:70]}\"")
+
     new_body_text = st.text_area("Body text", value=doc_data["body_text"], height=260, key=k("body_text"))
     if new_body_text.strip():
         n_words = word_count(new_body_text)
@@ -168,6 +183,12 @@ if can_edit:
         new_domain = st.selectbox("Domain", DOMAINS, index=DOMAINS.index(domain_default), key=k("domain"))
     with col2:
         new_url = st.text_input("URL", value=doc_data["source_url"] or "", key=k("url"))
+        if new_url.strip():
+            url_matches = [
+                m for m in find_duplicates(new_title, new_url, existing_docs, exclude_id=doc_id) if m.reason == "url_exact"
+            ]
+            for m in url_matches[:5]:
+                st.error(f"⚠️ URL trùng với document #{m.document_id} — \"{m.title[:70]}\"")
 
     if st.button("Lưu thay đổi", type="primary", key=k("submit")):
         errors = []

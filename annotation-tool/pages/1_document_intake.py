@@ -14,10 +14,12 @@ from datetime import date
 from pathlib import Path
 
 import streamlit as st
+from sqlalchemy import select
 
 from auth import current_user, require_login
 from constants import CHART_TYPES, DOMAINS, MAX_BODY_TEXT_WORDS
 from db import get_session
+from dedup import find_duplicates
 from models import Chart, Document
 from validation import check_chart_placeholders, word_count
 
@@ -35,7 +37,21 @@ st.caption(
 gen = st.session_state.setdefault("intake_form_gen", 0)
 k = lambda name: f"{name}_{gen}"  # noqa: E731 — reset widget keys after mỗi lần lưu
 
+# Nhiều annotator cùng thu thập bài độc lập — cảnh báo (không chặn lưu, annotator tự
+# quyết định) ngay tại field title/URL nếu nghi trùng, để dừng sớm thay vì phát hiện
+# lúc đã soạn xong cả body_text/chart (xem dedup.py).
+with get_session() as session:
+    existing_docs = [
+        {"id": d.id, "title": d.title, "source_url": d.source_url} for d in session.scalars(select(Document)).all()
+    ]
+
 title = st.text_input("Title", key=k("title"))
+if title.strip():
+    for m in find_duplicates(title, None, existing_docs)[:5]:
+        if m.reason == "title_exact":
+            st.warning(f"⚠️ Title trùng hệt document #{m.document_id} — \"{m.title[:70]}\"")
+        else:
+            st.warning(f"⚠️ Title khá giống document #{m.document_id} ({m.score:.0%} tương đồng) — \"{m.title[:70]}\"")
 
 st.subheader("Ảnh chart")
 uploaded_files = st.file_uploader(
@@ -79,6 +95,10 @@ with col1:
     domain = st.selectbox("Domain", DOMAINS, key=k("domain"))
 with col2:
     url = st.text_input("URL", key=k("url"))
+    if url.strip():
+        url_matches = [m for m in find_duplicates(title, url, existing_docs) if m.reason == "url_exact"]
+        for m in url_matches[:5]:
+            st.error(f"⚠️ URL trùng với document #{m.document_id} — \"{m.title[:70]}\"")
     st.caption(f"Ngày truy cập: tự động = hôm nay ({date.today()})")
 
 if st.button("Lưu document", type="primary", key=k("submit")):
