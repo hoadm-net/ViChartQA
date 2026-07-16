@@ -136,7 +136,7 @@ col_a.metric("Status", doc_data["status"])
 col_b.metric("Split", doc_data["split"] or "(chưa gán)")
 col_c.metric("Câu hỏi", n_questions)
 
-with st.expander("Xem toàn văn body_text", expanded=False):
+with st.expander(f"Xem toàn văn body_text ({word_count(doc_data['body_text'])} từ)", expanded=False):
     st.write(doc_data["body_text"])
 
 if charts_data:

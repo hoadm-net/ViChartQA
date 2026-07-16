@@ -17,6 +17,7 @@ from constants import VLM_MODELS
 from db import get_session
 from models import Document, Evidence, Question
 from question_ui import render_question_form
+from validation import word_count
 from versioning import record_version
 from vlm_client import VLMError, generate_candidates
 
@@ -91,7 +92,7 @@ with get_session() as session:
 
 # ---- Document context ----
 st.subheader(doc.title)
-with st.expander("Xem toàn văn body_text", expanded=False):
+with st.expander(f"Xem toàn văn body_text ({word_count(doc.body_text)} từ)", expanded=False):
     st.write(doc.body_text)
 if charts:
     for col, chart in zip(st.columns(len(charts)), charts):
