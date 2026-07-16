@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from vlm_client import VLMError, _build_user_prompt, _parse_response
+from vlm_client import VLMError, _build_user_content, _parse_response
 
 
 def test_parse_response_plain_json():
@@ -32,17 +32,49 @@ def test_parse_response_invalid_json_raises():
         pass
 
 
-def test_build_user_prompt_includes_charts_and_seeds():
-    prompt = _build_user_prompt(
+def test_build_user_content_includes_charts_and_seeds():
+    content = _build_user_content(
         title="T",
         body_text="B",
         charts=[{"chart_id": "fig1", "chart_type": "line"}],
         seed_questions=["Câu 1?"],
         n=3,
     )
-    assert "fig1" in prompt
-    assert "Câu 1?" in prompt
-    assert "đúng 3 câu" in prompt
+    joined_text = " ".join(b["text"] for b in content if b["type"] == "text")
+    assert "fig1" in joined_text
+    assert "Câu 1?" in joined_text
+    assert "đúng 3 câu" in joined_text
+
+
+def test_build_user_content_inserts_image_at_placeholder_position():
+    """LLM phải THẤY ảnh chart thật ngay tại vị trí [CHART N] gốc, không chỉ đọc tên
+    chart_type — đây là phần vừa bổ sung để gợi ý bám sát số liệu hơn."""
+    content = _build_user_content(
+        title="T",
+        body_text="Trước. [CHART 1] Sau.",
+        charts=[{"chart_id": "fig1", "chart_type": "line", "image_data_uri": "data:image/png;base64,AAA"}],
+        seed_questions=[],
+        n=1,
+    )
+    types = [b["type"] for b in content]
+    assert "image_url" in types
+    image_idx = types.index("image_url")
+    assert content[image_idx]["image_url"]["url"] == "data:image/png;base64,AAA"
+
+    before_idx = next(i for i, b in enumerate(content) if b["type"] == "text" and "Trước." in b["text"])
+    after_idx = next(i for i, b in enumerate(content) if b["type"] == "text" and "Sau." in b["text"])
+    assert before_idx < image_idx < after_idx, "ảnh phải nằm đúng giữa 2 đoạn text bao quanh placeholder"
+
+
+def test_build_user_content_falls_back_to_text_when_image_missing():
+    content = _build_user_content(
+        title="T",
+        body_text="X [CHART 1] Y",
+        charts=[{"chart_id": "fig1", "chart_type": "line"}],  # không có image_data_uri
+        seed_questions=[],
+        n=1,
+    )
+    assert not any(b["type"] == "image_url" for b in content)
 
 
 if __name__ == "__main__":

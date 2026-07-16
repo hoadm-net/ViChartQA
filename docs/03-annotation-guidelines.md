@@ -1,6 +1,6 @@
 # 03 — Hướng dẫn gán nhãn
 
-Dành cho annotator. Đọc trước khi bắt đầu pilot; cập nhật thành v2 sau pilot.
+Dành cho annotator. Đọc trước khi bắt đầu pilot; cập nhật thành v2 sau pilot. Xem [docs/05](05-annotation-examples.md) cho 2 document thật gán nhãn đầy đủ — ví dụ cụ thể áp dụng mọi quy tắc dưới đây.
 
 ## Nguyên tắc chung
 
@@ -8,7 +8,7 @@ Dành cho annotator. Đọc trước khi bắt đầu pilot; cập nhật thành
 2. Đáp án phải duy nhất và khách quan.
 3. Ưu tiên câu hỏi tự nhiên — hình dung người thật đọc báo cáo sẽ hỏi gì.
 4. Giữ nguyên thuật ngữ miền — không đơn giản hoá thuật ngữ kinh tế/khoa học.
-5. Không tự ý gắn nhãn multi-hop — chỉ gán `hop_type != single_chart` nếu khớp đúng định nghĩa ở [Hop-type](#hop-type-phạm-vi-bằng-chứng-mới); nếu bỏ body_text mà câu hỏi vẫn trả lời được từ 1 chart, đó là `single_chart`.
+5. Không tự ý gắn nhãn multi-hop — chỉ gán `hop_type` là `text_and_chart`/`charts` nếu khớp đúng định nghĩa ở [Hop-type](#hop-type-phạm-vi-bằng-chứng-mới); nếu bỏ hết chart mà câu hỏi vẫn trả lời được từ text, đó là `text`; nếu bỏ body_text mà câu hỏi vẫn trả lời được từ 1 chart, đó là `chart`.
 
 ## Định nghĩa từng loại câu hỏi
 
@@ -54,38 +54,46 @@ Xác định đối tượng bằng đặc điểm thị giác trước, rồi t
 
 ## Hop-type (phạm vi bằng chứng, mới)
 
-Chiều nhãn thứ hai, độc lập với `question_type` — mọi câu hỏi có cả hai. Kiểm tra bằng phép thử bỏ text: xoá body_text, nếu câu hỏi vẫn trả lời được đầy đủ từ chart, đó là `single_chart`.
+Chiều nhãn thứ hai, độc lập với `question_type` — mọi câu hỏi có cả hai. Tách theo đúng 1 tiêu chí: **cần đọc nguồn nào để trả lời** (không trộn với dạng câu trả lời — tính toán ra 1 giá trị hay xác minh đúng/sai, việc đó đã thuộc `question_type`). Kiểm tra bằng 2 phép thử:
 
-### 1. `single_chart`
+- Bỏ hết chart, chỉ còn text — câu hỏi vẫn trả lời được đầy đủ? → `text`.
+- Bỏ body_text, chỉ còn chart — câu hỏi vẫn trả lời được đầy đủ? → `chart`.
+- Cả 2 phép thử đều KHÔNG trả lời được đầy đủ (thiếu 1 trong 2 là mất thông tin) → `text_and_chart` (hoặc `charts` nếu cần ≥2 chart, xem bên dưới).
+
+### 1. `text`
+
+Trả lời được chỉ từ body_text, không cần nhìn chart nào.
+
+- ✅ "Theo bài viết, xu hướng chung của FDI và xuất nhập khẩu trong giai đoạn này là gì?" — nếu câu trả lời (vd "tích cực dù có biến động") chỉ được phát biểu trong text, không đọc được trực tiếp từ chart.
+- ❌ Gắn `text` cho 1 số liệu vừa có trong text vừa có sẵn trên chart — ưu tiên `chart` (test bỏ text vẫn trả lời được).
+
+### 2. `chart`
 
 - ✅ "Vốn FDI năm 2020 là bao nhiêu?"
-- ❌ Gắn `text_to_chart` chỉ vì body_text "cũng nhắc năm 2020" khi số liệu đã có sẵn trên chart.
+- ❌ Gắn `text_and_chart` chỉ vì body_text "cũng nhắc năm 2020" khi số liệu đã có sẵn trên chart.
 
-### 2. `text_to_chart`
+### 3. `text_and_chart`
 
-Hop 1 lấy claim/số liệu chỉ tồn tại trong body_text; hop 2 đối chiếu/tính toán với chart.
+Cần cả 2 nguồn — thiếu 1 trong 2 thì không trả lời/xác minh đầy đủ được. Gồm 2 dạng thường gặp:
 
-- ✅ "Bài viết nêu dự báo tăng trưởng theo ADB cho năm 2022 — so với GDP năm 2021 trên Hình 1, mức tăng tuyệt đối dự kiến là bao nhiêu?"
-- ❌ "GDP năm 2021 là bao nhiêu, theo đoạn văn mở đầu?" — nếu số liệu cũng có trên chart, đây là `single_chart`.
+- **Lấy claim/số liệu chỉ có trong text, đối chiếu/tính toán với chart:**
+  ✅ "Bài viết nêu dự báo tăng trưởng theo ADB cho năm 2022 — so với GDP năm 2021 trên Hình 1, mức tăng tuyệt đối dự kiến là bao nhiêu?"
+  ❌ "GDP năm 2021 là bao nhiêu, theo đoạn văn mở đầu?" — nếu số liệu cũng có trên chart, đây là `chart`.
+- **Xác minh 1 phát biểu đúng/sai cần cả 2 nguồn** (`question_type = fact_check`):
+  ✅ "Đúng hay sai: vốn FDI tăng liên tục suốt 2011–2021?" — text chỉ nói "biến động", chart mới cho thấy giảm ở 2012, 2020.
+  ❌ "Đúng hay sai: bài viết nói GDP tăng gấp 3 lần?" — chỉ cần đọc text, không thuộc phạm vi dataset (không phải `text_and_chart`, mà là `text`, và có thể không thuộc phạm vi nếu chỉ là trích dẫn nguyên văn không cần suy luận).
 
-### 3. `chart_to_chart`
+### 4. `charts`
 
 ≥2 chart trong cùng document; body_text là cầu nối.
 
 - ✅ "Trong giai đoạn 2011–2021, chỉ tiêu nào tăng nhanh hơn: GDP (Hình 1) hay kim ngạch xuất nhập khẩu (Hình 3)?"
 - ❌ Hai chart không liên quan chủ đề, ghép câu hỏi gượng ép chỉ để đạt tỷ trọng multi-hop.
 
-### 4. `fact_check_dual`
+`evidence` bắt buộc với **mọi** câu hỏi, kể cả hop_type đơn nguồn (`chart`/`text`) — không
+còn bước xác minh chéo độc lập nên đây là chốt kiểm chứng duy nhất còn lại:
 
-Cần đọc cả text lẫn chart để xác minh đúng/sai.
-
-- ✅ "Đúng hay sai: vốn FDI tăng liên tục suốt 2011–2021?" — text chỉ nói "biến động", chart mới cho thấy giảm ở 2012, 2020.
-- ❌ "Đúng hay sai: bài viết nói GDP tăng gấp 3 lần?" — chỉ cần đọc text, không thuộc phạm vi dataset.
-
-`evidence` bắt buộc với **mọi** câu hỏi, kể cả `single_chart` — không còn bước xác minh
-chéo độc lập nên đây là chốt kiểm chứng duy nhất còn lại:
-
-- Hop từ chart: `series` (tên chuỗi/đường/cột) + `x` (nhãn/giá trị trục x) — annotator gõ tay trực tiếp, mô tả đúng cái đang nhìn trên ảnh; không có bảng dữ liệu gốc để đối chiếu tự động, công cụ chỉ chặn lưu nếu để trống.
+- Hop từ chart: `description` — đánh số từng bước truy hồi giá trị trên ảnh (xem quy ước ở [docs/02](02-dataset-design.md#định-dạng-evidence)), annotator gõ tay trực tiếp; không có bảng dữ liệu gốc để đối chiếu tự động, công cụ chỉ chặn lưu nếu để trống.
 - Hop từ text: `quote` là đoạn trích nguyên văn ngắn từ body_text — công cụ auto-check khớp nguyên văn.
 
 Thiếu evidence (rỗng) hoặc quote không khớp nguyên văn `body_text` = công cụ chặn lưu ngay lúc soạn (xem [annotation-tool/README.md](../annotation-tool/README.md#hướng-dẫn-sử-dụng)).
@@ -102,14 +110,14 @@ Thiếu evidence (rỗng) hoặc quote không khớp nguyên văn `body_text` = 
 
 ### 1. Đọc document
 
-Đọc title + body_text trước, ghi chú số liệu/claim chỉ xuất hiện trong text (nguyên liệu cho `text_to_chart`/`fact_check_dual`) và quan sát từng chart (loại, độ phức tạp).
+Đọc title + body_text trước, ghi chú số liệu/claim chỉ xuất hiện trong text (nguyên liệu cho `text`/`text_and_chart`) và quan sát từng chart (loại: đơn/`combo`/`subplot`).
 
 ### 2. Soạn câu hỏi
 
 Ở trang "Soạn câu hỏi" (xem [annotation-tool/README.md](../annotation-tool/README.md#hướng-dẫn-sử-dụng)): có thể bấm sinh gợi ý bằng LLM để tham khảo (không tự lưu vào dataset — chỉ dùng làm mẫu rồi tự viết/sửa lại), hoặc viết thẳng từ đầu. Mỗi document cần tối thiểu:
 
-- 1 câu `single_chart` (compositional hoặc visual_compositional).
-- 1 câu multi-hop (`text_to_chart`/`chart_to_chart`/`fact_check_dual`).
+- 1 câu `chart` (compositional hoặc visual_compositional).
+- 1 câu multi-hop (`text_and_chart`/`charts`).
 
 Mọi câu đều cần `evidence` đầy đủ (xem [Hop-type](#hop-type-phạm-vi-bằng-chứng-mới)); công cụ chặn lưu nếu thiếu, hoặc nếu quote text không khớp nguyên văn `body_text`.
 
@@ -120,7 +128,7 @@ Không có bước xác minh chéo riêng — annotator (hoặc người khác x
 ## Checklist nhanh trước khi nộp một batch
 
 - [ ] Mỗi document đủ tỷ trọng taxonomy (cả 2 chiều, ≥1 câu multi-hop/document)
-- [ ] Mọi câu hỏi qua phép thử bỏ text đúng hop_type và có `evidence` đầy đủ
+- [ ] Mọi câu hỏi qua phép thử bỏ text/bỏ chart đúng hop_type và có `evidence` đầy đủ
 - [ ] Mọi câu `answer_type: numeric` thuộc compositional/visual_compositional có `derivation`, khớp số liệu đọc từ chart
 - [ ] Không có câu hỏi trùng lặp ý nghĩa trong cùng document
 - [ ] Đáp án số giữ đúng định dạng/đơn vị trên chart

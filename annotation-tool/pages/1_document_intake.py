@@ -14,10 +14,12 @@ from datetime import date
 from pathlib import Path
 
 import streamlit as st
+from sqlalchemy import select
 
 from auth import current_user, require_login
-from constants import CHART_COMPLEXITY, CHART_TYPES, DOMAINS, MAX_BODY_TEXT_WORDS
+from constants import CHART_TYPES, DOMAINS, MAX_BODY_TEXT_WORDS
 from db import get_session
+from dedup import find_duplicates
 from models import Chart, Document
 from validation import check_chart_placeholders, word_count
 
@@ -35,12 +37,26 @@ st.caption(
 gen = st.session_state.setdefault("intake_form_gen", 0)
 k = lambda name: f"{name}_{gen}"  # noqa: E731 — reset widget keys after mỗi lần lưu
 
+# Nhiều annotator cùng thu thập bài độc lập — cảnh báo (không chặn lưu, annotator tự
+# quyết định) ngay tại field title/URL nếu nghi trùng, để dừng sớm thay vì phát hiện
+# lúc đã soạn xong cả body_text/chart (xem dedup.py).
+with get_session() as session:
+    existing_docs = [
+        {"id": d.id, "title": d.title, "source_url": d.source_url} for d in session.scalars(select(Document)).all()
+    ]
+
 title = st.text_input("Title", key=k("title"))
+if title.strip():
+    for m in find_duplicates(title, None, existing_docs)[:5]:
+        if m.reason == "title_exact":
+            st.warning(f"⚠️ Title trùng hệt document #{m.document_id} — \"{m.title[:70]}\"")
+        else:
+            st.warning(f"⚠️ Title khá giống document #{m.document_id} ({m.score:.0%} tương đồng) — \"{m.title[:70]}\"")
 
 st.subheader("Ảnh chart")
 uploaded_files = st.file_uploader(
     "Chọn ảnh (tối đa 3 — ảnh ghép nhiều subplot vẫn tính là 1 ảnh, chọn loại chart 'subplot' bên dưới)",
-    type=["png", "jpg", "jpeg"],
+    type=["png", "jpg", "jpeg", "webp"],
     accept_multiple_files=True,
     key=k("files"),
 )
@@ -49,16 +65,12 @@ chart_meta = []
 if uploaded_files:
     for i, f in enumerate(uploaded_files[:3]):
         st.markdown(f"**[CHART {i + 1}]** — {f.name}")
-        c_img, c_type, c_complexity = st.columns([1, 1, 1])
+        c_img, c_type = st.columns([1, 1])
         with c_img:
             st.image(f, width=180)
         with c_type:
             chart_type = st.selectbox(f"Loại chart #{i + 1}", CHART_TYPES, key=k(f"type_{i}"))
-        with c_complexity:
-            complexity = st.selectbox(f"Độ phức tạp #{i + 1}", CHART_COMPLEXITY, key=k(f"complexity_{i}"))
-        chart_meta.append(
-            {"file": f, "chart_id": f"fig{i + 1}", "chart_type": chart_type, "chart_complexity": complexity}
-        )
+        chart_meta.append({"file": f, "chart_id": f"fig{i + 1}", "chart_type": chart_type})
 
 body_text = st.text_area(
     "Body text — TOÀN VĂN bài báo, chèn [CHART N] tại đúng vị trí chart N xuất hiện",
@@ -83,6 +95,10 @@ with col1:
     domain = st.selectbox("Domain", DOMAINS, key=k("domain"))
 with col2:
     url = st.text_input("URL", key=k("url"))
+    if url.strip():
+        url_matches = [m for m in find_duplicates(title, url, existing_docs) if m.reason == "url_exact"]
+        for m in url_matches[:5]:
+            st.error(f"⚠️ URL trùng với document #{m.document_id} — \"{m.title[:70]}\"")
     st.caption(f"Ngày truy cập: tự động = hôm nay ({date.today()})")
 
 if st.button("Lưu document", type="primary", key=k("submit")):
@@ -129,7 +145,6 @@ if st.button("Lưu document", type="primary", key=k("submit")):
                         chart_id=meta["chart_id"],
                         image_path=str(image_path.relative_to(IMAGES_DIR.parent.parent)),
                         chart_type=meta["chart_type"],
-                        chart_complexity=meta["chart_complexity"],
                     )
                 )
             session.commit()

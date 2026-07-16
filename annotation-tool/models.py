@@ -1,7 +1,7 @@
 """SQLAlchemy ORM models.
 
-`choices` and `x` use the generic JSON type so the same code works against SQLite
-(stored as TEXT) or Postgres (JSONB) if ever migrated.
+`choices`/`equivalent_answers` use the generic JSON type so the same code works against
+SQLite (stored as TEXT) or Postgres (JSONB) if ever migrated.
 """
 
 from __future__ import annotations
@@ -21,7 +21,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from constants import (
     ANSWER_TYPES,
-    CHART_COMPLEXITY,
     CHART_TYPES,
     DOCUMENT_STATUSES,
     DOMAINS,
@@ -100,17 +99,10 @@ class Chart(Base):
     chart_id: Mapped[str] = mapped_column(String)  # local label: "fig1", "fig2", ...
     image_path: Mapped[str] = mapped_column(String)
     chart_type: Mapped[str] = mapped_column(String)
-    chart_complexity: Mapped[str | None] = mapped_column(String, nullable=True)
 
     document: Mapped["Document"] = relationship(back_populates="charts")
 
-    __table_args__ = (
-        CheckConstraint(f"chart_type IN {tuple(CHART_TYPES)}", name="ck_charts_type"),
-        CheckConstraint(
-            f"chart_complexity IS NULL OR chart_complexity IN {tuple(CHART_COMPLEXITY)}",
-            name="ck_charts_complexity",
-        ),
-    )
+    __table_args__ = (CheckConstraint(f"chart_type IN {tuple(CHART_TYPES)}", name="ck_charts_type"),)
 
 
 class Question(Base):
@@ -155,8 +147,10 @@ class Evidence(Base):
     hop_order: Mapped[int] = mapped_column(Integer, default=1)
     source: Mapped[str] = mapped_column(String)
     chart_id: Mapped[int | None] = mapped_column(ForeignKey("charts.id"), nullable=True)
-    series: Mapped[str | None] = mapped_column(String, nullable=True)  # tự do, annotator gõ tay
-    x: Mapped[list | None] = mapped_column(JSON, nullable=True)  # tự do, annotator gõ tay
+    # Các bước truy hồi giá trị trên chart, annotator gõ tay tự do theo quy ước đánh số
+    # thứ tự (xem docs/03) — thay cho series/x tách rời, vốn không mô tả nổi chart phức
+    # tạp (combo, dual-axis, nhiều chuỗi chồng nhau...).
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     quote: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     question: Mapped["Question"] = relationship(back_populates="evidence")

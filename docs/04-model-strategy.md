@@ -32,8 +32,8 @@ Tuần 3-4, song song annotation:
 - Ablation bắt buộc:
   - Theo domain thực tế đạt được.
   - Theo `question_type` (7 giá trị) — xác định nhóm khó nhất.
-  - Theo `hop_type` — `single_chart` vs `text_to_chart`/`chart_to_chart`/`fact_check_dual`, bằng chứng số liệu cho claim "multi-hop khó hơn chart-only".
-  - Theo độ phức tạp chart (`simple`/`complex`).
+  - Theo `hop_type` — `text`/`chart` (đơn nguồn) vs `text_and_chart`/`charts` (multi-hop), bằng chứng số liệu cho claim "multi-hop khó hơn single-source".
+  - Theo `chart_type` — đơn (`bar`/`line`/`pie`) vs `combo` vs `subplot`.
 
 ## Metric đánh giá
 
@@ -41,7 +41,7 @@ Tuần 3-4, song song annotation:
 - Đáp án không phải số: exact match sau chuẩn hoá.
 - `unanswerable`: tính riêng, đo tỷ lệ mô hình nhận diện đúng.
 - Trắc nghiệm: accuracy trên 4 lựa chọn.
-- Bảng kết quả chính báo cáo tách theo hop-type: accuracy trên `single_chart` (so sánh trực tiếp ChartQA/ChartQAPro) và trên multi-hop gộp.
+- Bảng kết quả chính báo cáo tách theo hop-type: accuracy trên `chart` (so sánh trực tiếp ChartQA/ChartQAPro) và trên multi-hop gộp.
 - Tuỳ chọn nếu còn thời gian: đánh giá `evidence` mô hình sinh ra theo kiểu supporting-fact F1 (HotpotQA/MultiHiertt).
 
 ## Hướng mở rộng nếu còn thời gian (Tuần 7 trở đi / sau dự án)

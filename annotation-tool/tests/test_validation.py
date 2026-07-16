@@ -44,56 +44,60 @@ def test_numeric_answers_match_relaxed_tolerance():
 
 
 def test_validate_evidence_chart_ok():
-    """series/x là text tự do annotator gõ tay — không có data_table để tra cứu,
-    chỉ cần chart_id tồn tại và series/x không rỗng."""
+    """description là text tự do annotator gõ tay (các bước truy hồi giá trị) — không
+    có data_table để tra cứu, chỉ cần chart_id tồn tại và description không rỗng."""
     charts_by_id = {1: {"chart_id": "fig1"}}
-    evidence = [{"source": "chart", "chart_id": 1, "series": "GDP", "x": ["2011", "2021"]}]
-    result = validate_evidence("single_chart", evidence, charts_by_id, body_text="")
+    evidence = [{"source": "chart", "chart_id": 1, "description": "1. Tìm đường GDP. 2. Đọc giá trị năm 2011 và 2021."}]
+    result = validate_evidence("chart", evidence, charts_by_id, body_text="")
     assert result.ok, result.errors
 
 
 def test_validate_evidence_chart_unknown_chart_id():
     charts_by_id = {1: {"chart_id": "fig1"}}
-    evidence = [{"source": "chart", "chart_id": 99, "series": "FDI", "x": ["2011"]}]
-    result = validate_evidence("text_to_chart", evidence, charts_by_id, body_text="")
+    evidence = [{"source": "chart", "chart_id": 99, "description": "1. Tìm đường FDI."}]
+    result = validate_evidence("text_and_chart", evidence, charts_by_id, body_text="")
     assert not result.ok
     assert "chart_id" in result.errors[0]
 
 
-def test_validate_evidence_chart_empty_series_or_x_rejected():
+def test_validate_evidence_chart_empty_description_rejected():
     charts_by_id = {1: {"chart_id": "fig1"}}
-    missing_series = [{"source": "chart", "chart_id": 1, "series": "", "x": ["2011"]}]
-    assert not validate_evidence("single_chart", missing_series, charts_by_id, body_text="").ok
-    missing_x = [{"source": "chart", "chart_id": 1, "series": "GDP", "x": []}]
-    assert not validate_evidence("single_chart", missing_x, charts_by_id, body_text="").ok
+    missing_description = [{"source": "chart", "chart_id": 1, "description": ""}]
+    assert not validate_evidence("chart", missing_description, charts_by_id, body_text="").ok
+    blank_description = [{"source": "chart", "chart_id": 1, "description": "   "}]
+    assert not validate_evidence("chart", blank_description, charts_by_id, body_text="").ok
 
 
 def test_validate_evidence_text_requires_exact_quote():
     body = "GDP tăng dần theo thời gian."
     evidence = [{"source": "text", "quote": "GDP tăng dần theo thời gian."}]
-    assert validate_evidence("text_to_chart", evidence, {}, body).ok
+    assert validate_evidence("text_and_chart", evidence, {}, body).ok
 
     evidence_bad = [{"source": "text", "quote": "GDP giảm mạnh."}]
-    assert not validate_evidence("text_to_chart", evidence_bad, {}, body).ok
+    assert not validate_evidence("text_and_chart", evidence_bad, {}, body).ok
 
 
 def test_multi_hop_requires_evidence():
-    result = validate_evidence("chart_to_chart", [], {}, "")
+    result = validate_evidence("charts", [], {}, "")
     assert not result.ok
 
 
-def test_single_chart_requires_evidence_too():
+def test_single_source_hop_types_require_evidence_too():
     """Không còn xác minh chéo độc lập — evidence bắt buộc cho mọi hop_type,
-    kể cả single_chart (trước đây được coi là tuỳ chọn)."""
-    result = validate_evidence("single_chart", [], {}, "")
+    kể cả hop_type=chart hoặc text (trước đây được coi là tuỳ chọn)."""
+    result = validate_evidence("chart", [], {}, "")
+    assert not result.ok
+    assert "evidence" in result.errors[0]
+
+    result = validate_evidence("text", [], {}, "")
     assert not result.ok
     assert "evidence" in result.errors[0]
 
 
 def test_document_minimum_taxonomy():
-    ok, _ = document_has_minimum_taxonomy(["single_chart", "text_to_chart"])
+    ok, _ = document_has_minimum_taxonomy(["chart", "text_and_chart"])
     assert ok
-    ok, msg = document_has_minimum_taxonomy(["single_chart", "single_chart"])
+    ok, msg = document_has_minimum_taxonomy(["chart", "chart"])
     assert not ok
     assert "multi-hop" in msg
 

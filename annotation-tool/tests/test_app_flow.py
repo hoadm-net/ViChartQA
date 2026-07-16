@@ -91,7 +91,7 @@ def _insert_active_question(doc_id: int, user_id: int, question_text: str, answe
             answer=answer,
             answer_type="text",
             question_type="data_retrieval",
-            hop_type="single_chart",
+            hop_type="text",
             status="active",
             created_by=user_id,
         )
@@ -229,6 +229,38 @@ def test_page1_subplot_image_creates_one_chart_with_subplot_type(user_id: int):
         assert charts[0].chart_type == "subplot"
 
 
+def test_page1_warns_on_duplicate_title_without_blocking_save(doc_id: int, user_id: int):
+    """Nhiều annotator thu thập bài độc lập — title gần giống 1 document đã có (doc_id,
+    title "Bài test GDP 2011-2021") phải bị cảnh báo, nhưng vẫn lưu được (warn, không
+    chặn) — xem dedup.py."""
+    at = AppTest.from_file(str(ROOT / "pages" / "1_document_intake.py"))
+    at.session_state["user"] = type("U", (), {"id": user_id})()
+    at.run(timeout=15)
+
+    at.text_input[0].set_value("Bài test GDP 2011-2021 (bản khác)")
+    at.file_uploader[0].upload("fig1.png", _png_bytes(), "image/png")
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+    assert any(f"#{doc_id}" in w.value for w in at.warning), "expected a duplicate-title warning referencing doc_id"
+
+    at.text_area[0].set_value("Nội dung khác. [CHART 1]")
+    text_inputs = {ti.label: ti for ti in at.text_input}
+    text_inputs["Provider (vd. CafeF, GSO)"].set_value("TestProvider")
+    at.run(timeout=15)
+
+    with get_session() as s:
+        before_count = len(s.scalars(select(Document)).all())
+
+    save_btn = next(b for b in at.button if b.label == "Lưu document")
+    save_btn.click()
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+
+    with get_session() as s:
+        after_count = len(s.scalars(select(Document)).all())
+    assert after_count == before_count + 1, "duplicate-title warning should not block save"
+
+
 def test_page2_document_manager_lists_and_shows_selected_document(doc_id: int, user_id: int):
     at = AppTest.from_file(str(ROOT / "pages" / "2_document_manager.py"))
     at.session_state["user"] = type("U", (), {"id": user_id, "role": "annotator"})()
@@ -302,6 +334,42 @@ def test_page2_document_manager_edit_blocked_by_placeholder_mismatch(doc_id: int
         assert s.get(Document, doc_id).title == title_before, "document should not be saved when validation fails"
 
 
+def test_page2_document_manager_edit_warns_on_duplicate_without_blocking_save(user_id: int):
+    """2 document trùng nhau (title trùng hệt ngay từ đầu do dùng chung fixture; URL
+    trùng sau khi sửa tay) — cả 2 kiểu cảnh báo phải hiện ra, nhưng không chặn lưu."""
+    doc_a_id, _ = _make_throwaway_document_with_question(user_id)
+    doc_b_id, _ = _make_throwaway_document_with_question(user_id)
+    with get_session() as s:
+        s.get(Document, doc_a_id).source_url = "https://example.vn/bai-trung"
+        s.commit()
+
+    at = AppTest.from_file(str(ROOT / "pages" / "2_document_manager.py"))
+    at.session_state["user"] = type("U", (), {"id": user_id, "role": "pm"})()
+    at.run(timeout=15)
+    _select_doc_manager_row(at, doc_b_id)
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+    # doc_a và doc_b dùng chung fixture nên title trùng hệt ngay từ đầu, chưa cần sửa gì
+    assert any(f"#{doc_a_id}" in w.value for w in at.warning), "expected a duplicate-title warning referencing doc_a_id"
+
+    text_inputs = {ti.label: ti for ti in at.text_input}
+    text_inputs["URL"].set_value("https://example.vn/bai-trung")
+    at.run(timeout=15)
+    assert any(f"#{doc_a_id}" in e.value for e in at.error), "expected a duplicate-URL error referencing doc_a_id"
+
+    save_btn = next(b for b in at.button if b.label == "Lưu thay đổi")
+    save_btn.click()
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+
+    with get_session() as s:
+        assert s.get(Document, doc_b_id).source_url == "https://example.vn/bai-trung", (
+            "duplicate warning/error should not block save"
+        )
+        delete_document(s, doc_a_id)
+        delete_document(s, doc_b_id)
+
+
 def _make_throwaway_document_with_question(user_id: int) -> tuple[int, int]:
     """Document độc lập (không đụng doc_id chính của các test khác) có 1 chart + 1 câu
     hỏi + evidence + version — đủ để kiểm chứng xoá cascade đúng thứ tự phụ thuộc."""
@@ -322,7 +390,6 @@ def _make_throwaway_document_with_question(user_id: int) -> tuple[int, int]:
                 chart_id="fig1",
                 image_path="data/images/does_not_matter.png",
                 chart_type="line",
-                chart_complexity="simple",
             )
         )
         q = Question(
@@ -331,7 +398,7 @@ def _make_throwaway_document_with_question(user_id: int) -> tuple[int, int]:
             answer="tạm",
             answer_type="text",
             question_type="data_retrieval",
-            hop_type="single_chart",
+            hop_type="text",
             status="active",
             created_by=user_id,
         )
@@ -415,12 +482,16 @@ def test_page3_manual_add_creates_active_question_with_version(doc_id: int, user
     text_areas["Câu hỏi"].set_value("GDP năm 2021 là bao nhiêu?")
     text_inputs = {ti.label: ti for ti in at.text_input}
     text_inputs["Đáp án"].set_value("8.4")
-    # question_type/hop_type/answer_type left at defaults: data_retrieval/single_chart/numeric
-    # evidence: nguồn mặc định "chart" — series/x giờ là text tự do, không cần data_table
-    # điền trước (đã bỏ hẳn khái niệm data_table).
-    text_inputs = {ti.label: ti for ti in at.text_input}
-    text_inputs["Series/chiều dữ liệu (vd. tên đường/cột trên chart)"].set_value("GDP")
-    text_inputs["Giá trị/nhãn trục x (phân cách bằng dấu phẩy nếu nhiều)"].set_value("2021")
+    # question_type/answer_type left at defaults: data_retrieval/numeric; hop_type
+    # explicitly "chart" để khớp với evidence nguồn chart điền bên dưới.
+    hop_select = next(sb for sb in at.selectbox if sb.label == "hop_type")
+    hop_select.set_value("chart")
+    at.run(timeout=15)
+
+    # evidence: nguồn mặc định "chart" — description giờ là 1 textarea tự do (các bước
+    # truy hồi giá trị), không cần data_table điền trước.
+    text_areas = {ta.label: ta for ta in at.text_area}
+    text_areas["Cách đọc (đánh số từng bước)"].set_value("1. Tìm đường GDP. 2. Đọc giá trị năm 2021.")
     at.run(timeout=15)
     assert not at.exception, at.exception
 
@@ -436,11 +507,11 @@ def test_page3_manual_add_creates_active_question_with_version(doc_id: int, user
         assert q.answer == "8.4"
         assert q.status == "active"
         assert q.created_by == user_id
+        assert q.hop_type == "chart"
         evidence = s.scalars(select(Evidence).where(Evidence.question_id == q.id)).all()
         assert len(evidence) == 1
         assert evidence[0].source == "chart"
-        assert evidence[0].series == "GDP"
-        assert evidence[0].x == ["2021"]
+        assert evidence[0].description == "1. Tìm đường GDP. 2. Đọc giá trị năm 2021."
         versions = s.scalars(select(QuestionVersion).where(QuestionVersion.question_id == q.id)).all()
         assert len(versions) == 1, versions
         assert versions[0].change_type == "created"
@@ -512,7 +583,9 @@ def test_page3_reject_question_marks_rejected_with_version(doc_id: int, user_id:
 
 def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_id: int):
     """Gợi ý LLM chỉ hiển thị tham khảo — không được tự lưu vào questions; chỉ khi
-    annotator bấm "Lưu câu hỏi" trên form (sau khi "Dùng làm mẫu") mới tạo bản ghi."""
+    annotator bấm "Lưu câu hỏi" trên form (sau khi "Dùng làm mẫu") mới tạo bản ghi.
+    LLM không sinh evidence (xem vlm_client.py) — "Dùng làm mẫu" chỉ nạp câu
+    hỏi/đáp án, evidence builder phải trống, annotator tự điền tay mới lưu được."""
     at = AppTest.from_file(str(ROOT / "pages" / "3_question_workspace.py"))
     at.session_state["user"] = type("U", (), {"id": user_id})()
     at.run(timeout=15)
@@ -527,10 +600,9 @@ def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_i
             "answer": "GDP tăng dần theo thời gian.",
             "answer_type": "text",
             "question_type": "data_retrieval",
-            "hop_type": "single_chart",
+            "hop_type": "chart",
             "derivation": "",
             "choices": None,
-            "evidence": [{"source": "text", "quote": "GDP tăng dần theo thời gian."}],
         }
     ]
     at.run(timeout=15)
@@ -551,6 +623,30 @@ def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_i
         at.session_state["workspace_form_initial"]["question_text"]
         == "Bài viết mô tả xu hướng GDP như thế nào?"
     )
+    assert "evidence" not in at.session_state["workspace_form_initial"], "gợi ý LLM không được kèm evidence"
+
+    # evidence builder mặc định trống (nguồn "chart", description rỗng) — Lưu ngay phải bị chặn
+    save_btn = next(b for b in at.button if b.label == "Lưu câu hỏi")
+    save_btn.click()
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+    assert at.error, "thiếu evidence phải bị chặn lưu ngay cả khi câu hỏi đến từ gợi ý LLM"
+
+    with get_session() as s:
+        assert (
+            s.scalars(
+                select(Question).where(
+                    Question.document_id == doc_id,
+                    Question.question_text == "Bài viết mô tả xu hướng GDP như thế nào?",
+                )
+            ).first()
+            is None
+        )
+
+    # annotator tự điền evidence tay rồi mới lưu được
+    text_areas = {ta.label: ta for ta in at.text_area}
+    text_areas["Cách đọc (đánh số từng bước)"].set_value("1. Tìm đường GDP. 2. Đọc giá trị năm 2011 và 2021.")
+    at.run(timeout=15)
 
     save_btn = next(b for b in at.button if b.label == "Lưu câu hỏi")
     save_btn.click()
@@ -564,7 +660,7 @@ def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_i
                 Question.question_text == "Bài viết mô tả xu hướng GDP như thế nào?",
             )
         ).first()
-        assert q is not None, "explicit Lưu sau khi Dùng làm mẫu phải tạo được câu hỏi"
+        assert q is not None, "explicit Lưu sau khi tự điền evidence phải tạo được câu hỏi"
         assert q.status == "active"
     assert "workspace_form_initial" not in at.session_state
 
@@ -607,6 +703,8 @@ if __name__ == "__main__":
     print("PASS test_page1_missing_placeholder")
     test_page1_subplot_image_creates_one_chart_with_subplot_type(user_id)
     print("PASS test_page1_subplot")
+    test_page1_warns_on_duplicate_title_without_blocking_save(doc_id, user_id)
+    print("PASS test_page1_duplicate_warning")
 
     test_page2_document_manager_lists_and_shows_selected_document(doc_id, user_id)
     print("PASS test_page2_document_manager_list")
@@ -616,6 +714,8 @@ if __name__ == "__main__":
     print("PASS test_page2_document_manager_edit")
     test_page2_document_manager_edit_blocked_by_placeholder_mismatch(doc_id, pm_id)
     print("PASS test_page2_document_manager_edit_blocked")
+    test_page2_document_manager_edit_warns_on_duplicate_without_blocking_save(user_id)
+    print("PASS test_page2_document_manager_duplicate_warning")
     test_documents_delete_document_cascades_in_dependency_order(user_id)
     print("PASS test_documents_delete_document_cascade")
     test_page2_document_manager_delete_button_requires_pm(pm_id, user_id)

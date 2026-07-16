@@ -37,7 +37,6 @@ def _make_document(session, domain="economics", n_questions=1, question_status="
         chart_id="fig1",
         image_path="images/x.png",
         chart_type="line",
-        chart_complexity="simple",
     )
     session.add(chart)
     session.flush()
@@ -48,12 +47,14 @@ def _make_document(session, domain="economics", n_questions=1, question_status="
         answer="8.4",
         answer_type="numeric",
         question_type="data_retrieval",
-        hop_type="single_chart",
+        hop_type="chart",
         status=question_status,
     )
     session.add(q1)
     session.flush()
-    session.add(Evidence(question_id=q1.id, hop_order=1, source="chart", chart_id=chart.id, series="GDP", x=["2021"]))
+    session.add(
+        Evidence(question_id=q1.id, hop_order=1, source="chart", chart_id=chart.id, description="1. Đọc giá trị GDP năm 2021.")
+    )
 
     if n_questions > 1:
         q2 = Question(
@@ -62,14 +63,20 @@ def _make_document(session, domain="economics", n_questions=1, question_status="
             answer="5.9",
             answer_type="numeric",
             question_type="compositional",
-            hop_type="single_chart",
+            hop_type="chart",
             derivation="8.4 - 2.5",
             status=question_status,
         )
         session.add(q2)
         session.flush()
         session.add(
-            Evidence(question_id=q2.id, hop_order=1, source="chart", chart_id=chart.id, series="GDP", x=["2011", "2021"])
+            Evidence(
+                question_id=q2.id,
+                hop_order=1,
+                source="chart",
+                chart_id=chart.id,
+                description="1. Đọc giá trị GDP năm 2011 và 2021.",
+            )
         )
 
     session.commit()

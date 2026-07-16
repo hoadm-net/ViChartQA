@@ -15,16 +15,18 @@ QUESTION_TYPES = [
 # question_type values that require a `derivation` formula when answer_type == "numeric"
 DERIVATION_REQUIRED_TYPES = {"compositional", "visual_compositional"}
 
-HOP_TYPES = ["single_chart", "text_to_chart", "chart_to_chart", "fact_check_dual"]
-MULTI_HOP_TYPES = {"text_to_chart", "chart_to_chart", "fact_check_dual"}
+HOP_TYPES = ["text", "chart", "text_and_chart", "charts"]
+MULTI_HOP_TYPES = {"text_and_chart", "charts"}
 
 ANSWER_TYPES = ["numeric", "text", "unanswerable", "boolean"]
 
-# "subplot" = 1 ảnh ghép nhiều panel khác loại chart (vd pie + bar cạnh nhau) — không
-# tách chart_id riêng cho từng panel (ảnh không có nhãn (a)/(b) để phân biệt, model đọc
-# ảnh cũng không biết đâu là đâu), coi cả ảnh là 1 chart entry, type="subplot".
-CHART_TYPES = ["bar", "line", "pie", "stacked_bar", "grouped_bar", "multi_line", "subplot"]
-CHART_COMPLEXITY = ["simple", "complex"]
+# "combo" = 1 vùng vẽ trộn từ 2 loại mark trở lên (vd cột doanh thu + đường tăng trưởng,
+# grouped/stacked bar kèm 1 hoặc nhiều đường) — khác "subplot" ở chỗ vẫn chỉ 1 vùng vẽ,
+# không tách nhiều panel. "subplot" = 1 ảnh ghép nhiều panel khác loại chart (vd pie +
+# bar cạnh nhau) — không tách chart_id riêng cho từng panel (ảnh không có nhãn (a)/(b)
+# để phân biệt, model đọc ảnh cũng không biết đâu là đâu), coi cả ảnh là 1 chart entry,
+# type="subplot".
+CHART_TYPES = ["bar", "line", "pie", "combo", "subplot"]
 
 MAX_BODY_TEXT_WORDS = 2000  # xem docs/02 §Phạm vi
 
@@ -53,7 +55,6 @@ SPLITS = ["train", "val", "test"]
 VLM_MODEL_SLUGS = {
     "gpt-5.4-nano": "openai/gpt-5.4-nano",
     "gemini-3.1-flash-lite": "google/gemini-3.1-flash-lite",
-    "qwen3-vl-235b": "qwen/qwen3-vl-235b-a22b-instruct",
 }
 VLM_MODELS = list(VLM_MODEL_SLUGS.keys())
 

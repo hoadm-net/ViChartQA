@@ -2,6 +2,8 @@
 
 Streamlit + SQLite — công cụ nội bộ để nạp document và soạn câu hỏi cho bộ dữ liệu ViChartQA.
 
+**Annotator mới đọc [NOTES.md](NOTES.md) trước** — bản rút gọn giải thích question_type/hop_type/evidence/quy ước thu thập bài, dễ vào việc hơn đọc thẳng [docs/](../docs/).
+
 ## Cài đặt
 
 ```bash
@@ -43,11 +45,13 @@ Mặc định chạy ở `localhost:8501`. Deploy thật chạy trên server/VPS
 
 Title + toàn văn body_text (chèn `[CHART N]` đúng vị trí từng chart xuất hiện trong bài) + tối đa 3 ảnh chart — ảnh tự đặt tên theo hash, preview ngay khi upload. Điền nguồn (provider/domain/url) — ngày truy cập tự động = hôm nay.
 
+Vừa gõ title/URL, công cụ tự so với toàn bộ document đã có trong DB và **cảnh báo** (không chặn lưu) nếu nghi trùng — URL trùng hệt, title trùng hệt, hoặc title tương đồng cao (báo đăng lại bài của nhau, sửa vài chữ). Hữu ích khi nhiều annotator cùng thu thập bài độc lập với nhau — xem `dedup.py`.
+
 ### 2. Quản lý document
 
 Bảng danh sách toàn bộ document (title, domain, provider, status, split, số chart, số câu hỏi, người tạo) — bấm 1 dòng để xem chi tiết bên dưới.
 
-- **Sửa** (chỉ role `pm`/`data_intake`): title, body_text (re-validate `[CHART N]` khớp số chart, giống lúc nhập), provider, domain, URL. `status`/`split`/ngày truy cập không sửa tay được — do workflow/export tự quản lý.
+- **Sửa** (chỉ role `pm`/`data_intake`): title, body_text (re-validate `[CHART N]` khớp số chart, giống lúc nhập), provider, domain, URL — cũng tự cảnh báo trùng URL/title như lúc nhập (loại trừ chính document đang sửa). `status`/`split`/ngày truy cập không sửa tay được — do workflow/export tự quản lý.
 - **Xoá** (chỉ role `pm`): nút 🗑️ ngay trong cột action của bảng danh sách, bấm mở modal xác nhận nêu rõ tên document + số câu hỏi sẽ mất, phải bấm xác nhận lần 2 mới xoá thật. Xoá thì xoá luôn toàn bộ câu hỏi/evidence/lịch sử liên quan (`documents.delete_document()`), không thể hoàn tác.
 - Role khác chỉ xem được, không có nút Sửa và không thấy cột action Xoá.
 
@@ -56,10 +60,10 @@ Bảng danh sách toàn bộ document (title, domain, provider, status, split, s
 Trang duy nhất sau khi nhập xong document:
 
 - Chọn document, xem lại title/body_text/ảnh chart.
-- **Gợi ý bằng LLM** (tuỳ chọn): chọn model + số câu, bấm sinh — kết quả chỉ hiển thị tham khảo, **không tự lưu**. Bấm "Dùng làm mẫu" để nạp vào form bên dưới; vẫn phải tự rà lại từng field và bấm Lưu mới thực sự tạo câu hỏi.
-- **Form soạn câu hỏi**: câu hỏi, đáp án (+ đáp án tương đương tuỳ chọn), `question_type`/`hop_type`, evidence builder (nguồn chart → chọn ảnh + gõ tay `series`/`x`, có preview ảnh ngay tại chỗ; nguồn text → dán quote nguyên văn từ body_text), `derivation` (bắt buộc khi đáp án là số và thuộc `compositional`/`visual_compositional`). Evidence bắt buộc cho **mọi** câu hỏi — thiếu hoặc quote không khớp nguyên văn sẽ bị chặn lưu.
+- **Gợi ý bằng LLM** (tuỳ chọn, model GPT hoặc Gemini): chọn model + số câu, bấm sinh — chỉ gợi ý câu hỏi + đáp án, **không sinh evidence**, kết quả chỉ hiển thị tham khảo, **không tự lưu**. Bấm "Dùng làm mẫu" để nạp vào form bên dưới; vẫn phải tự rà lại từng field, **tự đọc chart/text điền evidence tay**, rồi bấm Lưu mới thực sự tạo câu hỏi.
+- **Form soạn câu hỏi**: câu hỏi, đáp án (+ đáp án tương đương tuỳ chọn), `question_type`/`hop_type`, evidence builder (nguồn chart → chọn ảnh + gõ tay `description` — các bước truy hồi giá trị, đánh số thứ tự, có preview ảnh ngay tại chỗ; nguồn text → dán quote nguyên văn từ body_text), `derivation` (bắt buộc khi đáp án là số và thuộc `compositional`/`visual_compositional`). Evidence bắt buộc cho **mọi** câu hỏi — thiếu hoặc quote không khớp nguyên văn sẽ bị chặn lưu.
 - **Câu hỏi đã có**: nút Sửa (nạp lại vào form, lưu thành version mới), Bỏ (rút, chuyển status `rejected`), xem lịch sử chỉnh sửa (`question_versions`).
-- Cảnh báo nếu document chưa đủ tối thiểu 1 câu `single_chart` + 1 câu multi-hop.
+- Cảnh báo nếu document chưa đủ tối thiểu 1 câu `chart` + 1 câu multi-hop (`text_and_chart`/`charts`).
 
 ### 4. Dashboard
 
@@ -82,6 +86,8 @@ validation.py            # logic thuần Python: evidence không rỗng + quote 
 versioning.py              # logic thuần Python: snapshot_question/record_version (question_versions)
 documents.py                 # logic thuần Python: delete_document() — xoá document theo
                                # đúng thứ tự phụ thuộc để không vỡ FK (xem docstring)
+dedup.py                       # logic thuần Python: find_duplicates() — cảnh báo URL/title
+                                 # trùng hoặc gần giống khi nhập/sửa document (không chặn lưu)
 question_ui.py                 # widget Streamlit dùng chung: evidence builder, form soạn câu hỏi
                                   # (pages/3 gọi lại, không định nghĩa lại)
 vlm_client.py                     # gọi model qua OpenRouter, parse response thành gợi ý tham khảo
@@ -100,6 +106,7 @@ tests/
   test_validation.py    # unit test cho validation.py
   test_vlm_client.py       # unit test cho phần parse response (không gọi API thật)
   test_export.py             # unit test cho export.py
+  test_dedup.py                # unit test cho dedup.py
   test_app_flow.py             # integration test — lái thật từng trang qua
                                   # streamlit.testing.v1.AppTest (không chỉ import-check)
 ```
@@ -110,6 +117,7 @@ tests/
 python tests/test_validation.py
 python tests/test_vlm_client.py
 python tests/test_export.py
+python tests/test_dedup.py
 python tests/test_app_flow.py   # dùng DB riêng (tests/_test.db), an toàn chạy lại nhiều lần
 ```
 
@@ -120,6 +128,6 @@ Không có `pytest` trong requirements — mỗi file test tự chạy được 
 Đã xong đủ 5 trang (nhập document → quản lý document → soạn câu hỏi → dashboard → export), có test cho từng trang. Không có bước xác minh chéo/phân xử — thay bằng version history (`question_versions`) ghi lại mỗi lần tạo/sửa/rút câu hỏi. Việc còn lại trước khi dùng cho pilot thật:
 
 - [ ] Điền danh sách người thật vào `scripts/seed_users.py` (đang là placeholder `pod_a_1`, `pod_b_1`...)
-- [ ] Điền API key thật vào `.streamlit/secrets.toml`, thử gọi thật cả 3 model VLM (chưa test được trong môi trường dev vì không có key)
+- [ ] Điền API key thật vào `.streamlit/secrets.toml`, thử gọi thật cả 2 model VLM (chưa test được trong môi trường dev vì không có key)
 - [ ] Deploy lên server/VPS thật + cấu hình backup cron
 - [ ] Chạy thử với 1-2 document thật (không phải dữ liệu test) để annotator góp ý UI trước khi bắt đầu pilot diện rộng

@@ -130,10 +130,11 @@ class ValidationResult:
 
 
 def check_evidence_item(item: dict, charts_by_id: dict[int, dict], body_text: str) -> list[str]:
-    """`item` is one evidence dict: {source, chart_id?, series?, x?, quote?}.
+    """`item` is one evidence dict: {source, chart_id?, description?, quote?}.
     `charts_by_id` maps chart.id -> {"chart_id": str} (local label, e.g. "fig1").
-    `series`/`x` for chart evidence are free text the annotator types directly — no
-    backing data_table to check against, only presence is validated.
+    `description` for chart evidence is free text the annotator types directly (các
+    bước truy hồi giá trị, xem docs/03) — no backing data_table to check against, only
+    presence is validated.
     Returns a list of error strings (empty if valid).
     """
     errors: list[str] = []
@@ -145,12 +146,8 @@ def check_evidence_item(item: dict, charts_by_id: dict[int, dict], body_text: st
             errors.append(f"chart_id={chart_id} không tồn tại trong document này")
             return errors
 
-        if not (item.get("series") or "").strip():
-            errors.append("evidence chart thiếu series/chiều dữ liệu")
-
-        x_values = item.get("x") or []
-        if not x_values:
-            errors.append("evidence chart thiếu giá trị x")
+        if not (item.get("description") or "").strip():
+            errors.append("evidence chart thiếu mô tả cách đọc")
 
     elif source == "text":
         quote = (item.get("quote") or "").strip()
@@ -167,8 +164,8 @@ def check_evidence_item(item: dict, charts_by_id: dict[int, dict], body_text: st
 def validate_evidence(
     hop_type: str, evidence: list[dict], charts_by_id: dict[int, dict], body_text: str
 ) -> ValidationResult:
-    """Evidence bắt buộc cho mọi hop_type, kể cả single_chart — không còn xác minh
-    chéo độc lập nên đây là chốt kiểm chứng tự động duy nhất còn lại (xem docs/03)."""
+    """Evidence bắt buộc cho mọi hop_type, kể cả `chart`/`text` (đơn nguồn) — không còn
+    xác minh chéo độc lập nên đây là chốt kiểm chứng tự động duy nhất còn lại (xem docs/03)."""
     result = ValidationResult(ok=True)
 
     if not evidence:
@@ -186,16 +183,17 @@ def validate_evidence(
 
 
 def document_has_minimum_taxonomy(question_hop_types: list[str]) -> tuple[bool, str]:
-    """Bước 1 yêu cầu tối thiểu 1 câu single_chart + 1 câu multi-hop / document."""
-    has_single = "single_chart" in question_hop_types
+    """Bước 1 yêu cầu tối thiểu 1 câu hop_type=chart + 1 câu multi-hop / document —
+    giữ 1 slice chart-only để so sánh trực tiếp với ChartQA/ChartQAPro (xem docs/02)."""
+    has_chart = "chart" in question_hop_types
     has_multi_hop = any(h in MULTI_HOP_TYPES for h in question_hop_types)
-    if has_single and has_multi_hop:
+    if has_chart and has_multi_hop:
         return True, ""
     missing = []
-    if not has_single:
-        missing.append("single_chart")
+    if not has_chart:
+        missing.append("chart")
     if not has_multi_hop:
-        missing.append("multi-hop (text_to_chart/chart_to_chart/fact_check_dual)")
+        missing.append("multi-hop (text_and_chart/charts)")
     return False, f"Document còn thiếu: {', '.join(missing)}"
 
 
