@@ -56,7 +56,7 @@ if title.strip():
 st.subheader("Ảnh chart")
 uploaded_files = st.file_uploader(
     "Chọn ảnh (tối đa 3 — ảnh ghép nhiều subplot vẫn tính là 1 ảnh, chọn loại chart 'subplot' bên dưới)",
-    type=["png", "jpg", "jpeg"],
+    type=["png", "jpg", "jpeg", "webp"],
     accept_multiple_files=True,
     key=k("files"),
 )

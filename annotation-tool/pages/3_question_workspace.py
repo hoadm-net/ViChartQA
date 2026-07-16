@@ -23,7 +23,7 @@ from vlm_client import VLMError, generate_candidates
 
 ANNOTATION_ROOT = Path(__file__).resolve().parent.parent  # chart.image_path lưu tương đối gốc này (xem pages/1)
 
-_MIME_BY_SUFFIX = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
+_MIME_BY_SUFFIX = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
 
 
 def _image_data_uri(path: Path) -> str | None:
