@@ -121,44 +121,31 @@ Nhằm đảm bảo bộ dữ liệu đạt tiêu chuẩn nộp các hội ngh�
 **Sơ đồ luồng công việc (Workflow Architecture):**
 
 ```mermaid
-graph TD
-    classDef podA fill:#dae8fc,stroke:#6c8ebf,color:#000;
-    classDef podB fill:#d5e8d4,stroke:#82b366,color:#000;
-    classDef review fill:#ffe6cc,stroke:#d79b00,color:#000;
-    classDef audit fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#000;
-    classDef pass fill:#e1d5e7,stroke:#9673a6,stroke-width:2px,font-weight:bold,color:#000;
-    classDef state fill:#f5f5f5,stroke:#666,stroke-dasharray: 5 5,color:#333;
+flowchart TD
+    %% Khai báo Theme
+    classDef process fill:#e1d5e7,stroke:#9673a6,color:#000;
+    classDef decision fill:#fff2cc,stroke:#d6b656,color:#000;
+    classDef endnode fill:#d5e8d4,stroke:#82b366,color:#000;
 
-    P1["Pod A: Thu thập web"]:::podA --> P2["Pod B: Annotator gán nhãn"]:::podB
+    P1[Pod A: Thu thập web]:::process --> P2[Pod B: Annotator gán nhãn]:::process
     
-    P2 -->|"Câu thường"| P3["Pod C: Reviewer<br>(Check 50%)"]:::review
-    P2 -->|"Câu khó"| P4["QC<br>(Check toàn bộ câu khó)"]:::review
+    P2 --> Q_Type{Loại câu?}:::decision
     
-    %% Trạng thái trung gian để gom nhánh (tránh rối text đè lên đường kẻ)
-    S_Error("Lỗi / Yêu cầu sửa"):::state
-    S_Disagree("Bất đồng đánh giá"):::state
-    S_Agree("Đồng thuận"):::state
-
-    %% Gom nhánh Lỗi
-    P3 -.-> S_Error
-    P4 -.-> S_Error
-    S_Error -.-> P2
-
-    %% Gom nhánh Bất đồng
-    P3 --> S_Disagree
-    P4 --> S_Disagree
-    S_Disagree --> P5["Audit<br>(Phán quyết cuối cùng)"]:::audit
-
-    %% Nhánh Audit phản hồi
-    P5 -.->|"Yêu cầu sửa lại"| P2
-
-    %% Gom nhánh Đồng thuận
-    P3 --> S_Agree
-    P4 --> S_Agree
-    S_Agree --> P6["Passed"]:::pass
-    P5 -->|"Chốt phán quyết"| P6
+    Q_Type -->|Câu thường| P3[Pod C: Reviewer<br>Check 50%]:::process
+    Q_Type -->|Câu khó| P4[QC<br>Check 100%]:::process
     
-    P6 --> P7["Xuất file dữ liệu chuẩn"]:::pass
+    P3 --> Q_Result{Đánh giá?}:::decision
+    P4 --> Q_Result
+    
+    Q_Result -.->|Phát hiện Lỗi| P2
+    Q_Result -->|Bất đồng| P5[Audit<br>Giải quyết xung đột]:::process
+    Q_Result -->|Đồng thuận| P6[Passed]:::endnode
+    
+    P5 --> Q_Audit{Phán quyết?}:::decision
+    Q_Audit -.->|Yêu cầu sửa| P2
+    Q_Audit -->|Chốt kết quả| P6
+    
+    P6 --> P7([Xuất file dữ liệu chuẩn]):::endnode
 ```
 
 **Phân bổ nhân sự & Nhiệm vụ chi tiết (10 thành viên):**
