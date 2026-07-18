@@ -128,23 +128,23 @@ flowchart TD
     classDef endnode fill:#d5e8d4,stroke:#82b366,color:#000;
 
     P1[Pod A: Thu thập web]:::process --> P2[Pod B: Annotator gán nhãn]:::process
-    
+  
     P2 --> Q_Type{Loại câu?}:::decision
-    
+  
     Q_Type -->|Câu thường| P3[Pod C: Reviewer<br>Check 50%]:::process
     Q_Type -->|Câu khó| P4[QC<br>Check 100%]:::process
-    
+  
     P3 --> Q_Result{Đánh giá?}:::decision
     P4 --> Q_Result
-    
+  
     Q_Result -.->|Phát hiện Lỗi| P2
     Q_Result -->|Bất đồng| P5[Audit<br>Giải quyết xung đột]:::process
     Q_Result -->|Đồng thuận| P6[Passed]:::endnode
-    
+  
     P5 --> Q_Audit{Phán quyết?}:::decision
     Q_Audit -.->|Yêu cầu sửa| P2
     Q_Audit -->|Chốt kết quả| P6
-    
+  
     P6 --> P7([Xuất file dữ liệu chuẩn]):::endnode
 ```
 

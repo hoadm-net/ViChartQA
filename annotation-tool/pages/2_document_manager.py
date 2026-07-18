@@ -5,6 +5,7 @@ documents.delete_document() cho lý do vì sao xoá tường minh theo thứ t�
 dựa vào cascade ORM một mình.
 """
 
+import hashlib
 from pathlib import Path
 
 import pandas as pd
@@ -12,11 +13,11 @@ import streamlit as st
 from sqlalchemy import select
 
 from auth import current_user, require_login
-from constants import DOMAINS, MAX_BODY_TEXT_WORDS
+from constants import DOMAINS, MAX_BODY_TEXT_WORDS, CHART_TYPES
 from db import get_session
 from dedup import find_duplicates
 from documents import delete_document
-from models import Document, User
+from models import Document, User, Chart
 from validation import check_chart_placeholders, word_count
 
 ANNOTATION_ROOT = Path(__file__).resolve().parent.parent
@@ -190,11 +191,57 @@ if can_edit:
             for m in url_matches[:5]:
                 st.error(f"⚠️ URL trùng với document #{m.document_id} — \"{m.title[:70]}\"")
 
+    st.subheader("Ảnh chart")
+    if n_questions > 0:
+        st.info("Document đã có câu hỏi, không thể tải lên lại ảnh chart để tránh hỏng dữ liệu evidence đã gán. Bạn chỉ có thể cập nhật loại chart cho các ảnh hiện tại.")
+        edited_chart_types = {}
+        for chart in charts_data:
+            edited_chart_types[chart["chart_id"]] = st.selectbox(
+                f"Loại chart {chart['chart_id']}", 
+                CHART_TYPES, 
+                index=CHART_TYPES.index(chart["chart_type"]) if chart["chart_type"] in CHART_TYPES else 0, 
+                key=k(f"type_{chart['chart_id']}")
+            )
+        new_chart_meta = None
+        uploaded_files = None
+    else:
+        st.info("Để trống nếu muốn giữ nguyên các chart hiện tại. Nếu tải lên ảnh mới, toàn bộ chart cũ sẽ bị xoá và ghi đè (tối đa 3 ảnh).")
+        uploaded_files = st.file_uploader(
+            "Chọn ảnh mới (tối đa 3)",
+            type=["png", "jpg", "jpeg", "webp"],
+            accept_multiple_files=True,
+            key=k("files"),
+        )
+        new_chart_meta = []
+        if uploaded_files:
+            for i, f in enumerate(uploaded_files[:3]):
+                st.markdown(f"**[CHART {i + 1}]** — {f.name}")
+                c_img, c_type = st.columns([1, 1])
+                with c_img:
+                    st.image(f, width=180)
+                with c_type:
+                    default_idx = 0
+                    if i < len(charts_data) and charts_data[i]["chart_type"] in CHART_TYPES:
+                        default_idx = CHART_TYPES.index(charts_data[i]["chart_type"])
+                    chart_type = st.selectbox(f"Loại chart #{i + 1}", CHART_TYPES, index=default_idx, key=k(f"new_type_{i}"))
+                new_chart_meta.append({"file": f, "chart_id": f"fig{i + 1}", "chart_type": chart_type})
+        else:
+            edited_chart_types = {}
+            for chart in charts_data:
+                edited_chart_types[chart["chart_id"]] = st.selectbox(
+                    f"Loại chart {chart['chart_id']}", 
+                    CHART_TYPES, 
+                    index=CHART_TYPES.index(chart["chart_type"]) if chart["chart_type"] in CHART_TYPES else 0, 
+                    key=k(f"type_{chart['chart_id']}")
+                )
+
     if st.button("Lưu thay đổi", type="primary", key=k("submit")):
         errors = []
         if not new_title.strip() or not new_body_text.strip():
             errors.append("Cần nhập title và body_text.")
-        ok, msg = check_chart_placeholders(new_body_text, len(charts_data))
+        
+        num_charts = len(new_chart_meta) if uploaded_files else len(charts_data)
+        ok, msg = check_chart_placeholders(new_body_text, num_charts)
         if not ok:
             errors.append(msg)
 
@@ -209,7 +256,48 @@ if can_edit:
                 db_doc.source_provider = new_provider.strip()
                 db_doc.source_domain = new_domain
                 db_doc.source_url = new_url.strip() or None
-                write_session.commit()
-            st.success("Đã lưu.")
-            st.session_state["docmgr_form_gen"] += 1
-            st.rerun()
+
+                if uploaded_files:
+                    IMAGES_DIR = ANNOTATION_ROOT / "data" / "images"
+                    db_charts = sorted(db_doc.charts, key=lambda c: c.chart_id)
+                    
+                    for i, meta in enumerate(new_chart_meta):
+                        content = meta["file"].getvalue()
+                        ext = Path(meta["file"].name).suffix.lower() or ".png"
+                        file_hash = hashlib.sha256(content).hexdigest()[:16]
+                        image_path = IMAGES_DIR / f"{file_hash}{ext}"
+                        if not image_path.exists():
+                            image_path.write_bytes(content)
+                            
+                        rel_path = str(image_path.relative_to(ANNOTATION_ROOT))
+                        
+                        if i < len(db_charts):
+                            db_charts[i].image_path = rel_path
+                            db_charts[i].chart_type = meta["chart_type"]
+                            db_charts[i].chart_id = meta["chart_id"]
+                        else:
+                            new_chart = Chart(
+                                document_id=doc_id,
+                                chart_id=meta["chart_id"],
+                                image_path=rel_path,
+                                chart_type=meta["chart_type"],
+                            )
+                            write_session.add(new_chart)
+                    
+                    if len(new_chart_meta) < len(db_charts):
+                        for c in db_charts[len(new_chart_meta):]:
+                            write_session.delete(c)
+                else:
+                    db_charts = sorted(db_doc.charts, key=lambda c: c.chart_id)
+                    for c in db_charts:
+                        if c.chart_id in edited_chart_types:
+                            c.chart_type = edited_chart_types[c.chart_id]
+
+                try:
+                    write_session.commit()
+                    st.success("Đã lưu.")
+                    st.session_state["docmgr_form_gen"] += 1
+                    st.rerun()
+                except Exception as e:
+                    write_session.rollback()
+                    st.error(f"Lỗi khi lưu (có thể do xung đột dữ liệu): {e}")
