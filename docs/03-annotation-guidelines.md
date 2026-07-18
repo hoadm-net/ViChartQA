@@ -40,15 +40,15 @@ Bắt buộc tham chiếu thuộc tính thị giác (màu sắc, vị trí, kíc
 Xác định đối tượng bằng đặc điểm thị giác trước, rồi thực hiện phép toán.
 
 - ✅ "Trong các năm có cột màu xanh lá, năm nào có chênh lệch lớn nhất so với năm liền trước?"
-- ✅ "Đường nào (theo màu) có độ dốc tăng mạnh nhất giữa hai mốc đầu và cuối?"
+- ✅ "Đường nào (theo màu) có độ dốc tăng mạnh nhất giữa hai mốc đầu và cuối?"ôtttt
 
 ### 5. Mở rộng (kiểu ChartQAPro)
 
-| `question_type` | Định nghĩa | Ví dụ |
-|---|---|---|
-| `multiple_choice` | 4 lựa chọn (`choices`), 1 đúng; lựa chọn sai phải "gần đúng" | "Năm nào có tăng trưởng GDP cao nhất? A. 2021 B. 2022 C. 2023 D. 2024" |
-| `fact_check` | Xác nhận đúng/sai một phát biểu | "Đúng hay sai: chi tiêu R&D luôn tăng liên tục trong giai đoạn quan sát?" |
-| `unanswerable` | Không trả lời được từ document | "Nguyên nhân khiến lạm phát tăng đột biến năm 2023 là gì?" |
+| `question_type`   | Định nghĩa                                                            | Ví dụ                                                                             |
+| ------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `multiple_choice` | 4 lựa chọn (`choices`), 1 đúng; lựa chọn sai phải "gần đúng" | "Năm nào có tăng trưởng GDP cao nhất? A. 2021 B. 2022 C. 2023 D. 2024"       |
+| `fact_check`      | Xác nhận đúng/sai một phát biểu                                   | "Đúng hay sai: chi tiêu R&D luôn tăng liên tục trong giai đoạn quan sát?" |
+| `unanswerable`    | Không trả lời được từ document                                    | "Nguyên nhân khiến lạm phát tăng đột biến năm 2023 là gì?"              |
 
 `unanswerable`: đáp án ghi `"unanswerable"`, không để trống. Không quá 5–7% tổng số câu hỏi.
 
