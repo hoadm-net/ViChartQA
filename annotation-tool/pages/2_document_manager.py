@@ -83,11 +83,6 @@ event = st.dataframe(
     selection_mode="single-row",
     hide_index=True,
     key="doc_manager_table",
-    column_config={
-        "actions": st.column_config.ButtonColumn(
-            "", on_click=handle_row_delete_click, key="doc_row_action", width="small"
-        ),
-    },
 )
 
 pending_delete_id = st.session_state.get("pending_delete_doc_id")
@@ -102,8 +97,13 @@ if pending_delete_id and can_delete:
     else:
         st.session_state.pop("pending_delete_doc_id", None)
 
-if event.selection.rows:
-    st.session_state["selected_doc_id"] = int(df.iloc[event.selection.rows[0]]["id"])
+if isinstance(event, dict):
+    selected_rows = event.get("selection", {}).get("rows", [])
+else:
+    selected_rows = event.selection.rows if getattr(event, "selection", None) else []
+
+if selected_rows:
+    st.session_state["selected_doc_id"] = int(df.iloc[selected_rows[0]]["id"])
 doc_id = st.session_state.get("selected_doc_id")
 
 if not doc_id:
@@ -150,6 +150,11 @@ if charts_data:
 
 if not can_edit and not can_delete:
     st.caption("Chỉ `pm`/`data_intake` được sửa, chỉ `pm` được xoá document.")
+
+if can_delete:
+    if st.button("Xoá document này", type="primary", key="btn_delete_doc_outside"):
+        st.session_state["pending_delete_doc_id"] = doc_id
+        st.rerun()
 
 if can_edit:
     st.divider()

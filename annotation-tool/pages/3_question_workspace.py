@@ -45,7 +45,16 @@ if not doc_options:
     st.info("Chưa có document nào — sang trang Nhập document trước.")
     st.stop()
 
-selected_label = st.selectbox("Chọn document", list(doc_options.keys()))
+doc_keys = list(doc_options.keys())
+default_index = 0
+if "workspace_doc_id" in st.session_state:
+    target_id = st.session_state["workspace_doc_id"]
+    for i, d in enumerate(docs):
+        if d.id == target_id:
+            default_index = i
+            break
+
+selected_label = st.selectbox("Chọn document", doc_keys, index=default_index)
 doc_id = doc_options[selected_label]
 
 if st.session_state.get("workspace_doc_id") != doc_id:
