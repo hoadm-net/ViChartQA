@@ -153,7 +153,7 @@ def check_evidence_item(item: dict, charts_by_id: dict[int, dict], body_text: st
         quote = (item.get("quote") or "").strip()
         if not quote:
             errors.append("evidence text thiếu quote")
-        elif quote not in body_text:
+        elif _normalize_text(quote) not in _normalize_text(body_text):
             errors.append(f"quote không tìm thấy nguyên văn trong body_text: '{quote[:60]}...'")
     else:
         errors.append(f"source '{source}' không hợp lệ (phải là 'chart' hoặc 'text')")

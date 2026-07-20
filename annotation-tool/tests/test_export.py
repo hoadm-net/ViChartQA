@@ -83,6 +83,15 @@ def _make_document(session, domain="economics", n_questions=1, question_status="
     return doc.id
 
 
+import pytest
+
+@pytest.fixture(autouse=True)
+def clean_db():
+    from db import engine
+    from models import Base
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+
 def test_build_dataset_shapes_json_per_docs02_schema():
     with get_session() as s:
         doc_id = _make_document(s, n_questions=2)

@@ -1,0 +1,3 @@
+# Agent Instructions
+- **MANDATORY**: Sau khi tạo hoặc cập nhật bất kỳ Artifact nào (`write_to_file` hoặc `multi_replace_file_content`), Agent BẮT BUỘC phải thực thi script `python "C:\Users\Admin\.gemini\antigravity\bin\call_judgment.py" <đường_dẫn_file_artifact>` để gửi nội dung sang API Claude-Opus (Judgment model) đánh giá. Không có ngoại lệ. (Cờ `RequestFeedback: true` chỉ dùng để nhắc người dùng, không tự động gọi API).
+- **Streamlit Skills**: Khi làm việc với Streamlit UI (data display, layout, widgets), luôn ưu tiên tham khảo bộ tài liệu chuẩn (Best Practices) tại đường dẫn: `venv/Lib/site-packages/streamlit/.agents/skills/developing-with-streamlit/SKILL.md` (trong thư mục dự án ViChartQA).

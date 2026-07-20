@@ -186,7 +186,7 @@ def test_page1_document_intake_creates_document_and_charts(user_id: int):
     domain_select.set_value("economics")
     at.run(timeout=15)
 
-    save_btn = next(b for b in at.button if b.label == "Lưu document")
+    save_btn = next(b for b in at.button if b.label == "💾 Lưu document")
     save_btn.click()
     at.run(timeout=15)
     assert not at.exception, at.exception
@@ -224,7 +224,7 @@ def test_page1_missing_chart_placeholder_blocks_save(user_id: int):
     with get_session() as s:
         before_count = len(s.scalars(select(Document)).all())
 
-    save_btn = next(b for b in at.button if b.label == "Lưu document")
+    save_btn = next(b for b in at.button if b.label == "💾 Lưu document")
     save_btn.click()
     at.run(timeout=15)
     assert not at.exception, at.exception
@@ -262,7 +262,7 @@ def test_page1_subplot_image_creates_one_chart_with_subplot_type(user_id: int):
     domain_select.set_value("economics")
     at.run(timeout=15)
 
-    save_btn = next(b for b in at.button if b.label == "Lưu document")
+    save_btn = next(b for b in at.button if b.label == "💾 Lưu document")
     save_btn.click()
     at.run(timeout=15)
     assert not at.exception, at.exception
@@ -299,7 +299,7 @@ def test_page1_warns_on_duplicate_title_without_blocking_save(doc_id: int, user_
     with get_session() as s:
         before_count = len(s.scalars(select(Document)).all())
 
-    save_btn = next(b for b in at.button if b.label == "Lưu document")
+    save_btn = next(b for b in at.button if b.label == "💾 Lưu document")
     save_btn.click()
     at.run(timeout=15)
     assert not at.exception, at.exception
@@ -329,7 +329,7 @@ def test_page2_document_manager_hides_edit_and_delete_for_annotator(doc_id: int,
     _select_doc_manager_row(at, doc_id)
     at.run(timeout=15)
     assert not at.exception, at.exception
-    assert not any(b.label == "Lưu thay đổi" for b in at.button), "annotator should not see the edit form"
+    assert not any(b.label == "💾 Lưu thay đổi" for b in at.button), "annotator should not see the edit form"
     assert not any(b.label == "Xoá document này" for b in at.button), "annotator should not see the delete action"
 
 
@@ -345,7 +345,7 @@ def test_page2_document_manager_edit_as_data_intake(doc_id: int, data_intake_id:
     text_inputs["Title"].set_value("Bài test GDP 2011-2021 (đã sửa)")
     at.run(timeout=15)
 
-    save_btn = next(b for b in at.button if b.label == "Lưu thay đổi")
+    save_btn = next(b for b in at.button if b.label == "💾 Lưu thay đổi")
     save_btn.click()
     at.run(timeout=15)
     assert not at.exception, at.exception
@@ -370,7 +370,7 @@ def test_page2_document_manager_edit_blocked_by_placeholder_mismatch(doc_id: int
     text_areas["Body text"].set_value("Không có placeholder chart nào ở đây cả.")
     at.run(timeout=15)
 
-    save_btn = next(b for b in at.button if b.label == "Lưu thay đổi")
+    save_btn = next(b for b in at.button if b.label == "💾 Lưu thay đổi")
     save_btn.click()
     at.run(timeout=15)
     assert not at.exception, at.exception
@@ -403,7 +403,7 @@ def test_page2_document_manager_edit_warns_on_duplicate_without_blocking_save(us
     at.run(timeout=15)
     assert any(f"#{doc_a_id}" in e.value for e in at.error), "expected a duplicate-URL error referencing doc_a_id"
 
-    save_btn = next(b for b in at.button if b.label == "Lưu thay đổi")
+    save_btn = next(b for b in at.button if b.label == "💾 Lưu thay đổi")
     save_btn.click()
     at.run(timeout=15)
     assert not at.exception, at.exception
@@ -532,18 +532,18 @@ def test_page3_manual_add_creates_active_question_with_version(doc_id: int, user
     text_inputs["Đáp án"].set_value("8.4")
     # question_type/answer_type left at defaults: data_retrieval/numeric; hop_type
     # explicitly "chart" để khớp với evidence nguồn chart điền bên dưới.
-    hop_select = next(sb for sb in at.selectbox if sb.label == "hop_type")
+    hop_select = next(sb for sb in at.selectbox if sb.label == "Số bước (hop_type)")
     hop_select.set_value("chart")
     at.run(timeout=15)
 
     # evidence: nguồn mặc định "chart" — description giờ là 1 textarea tự do (các bước
     # truy hồi giá trị), không cần data_table điền trước.
     text_areas = {ta.label: ta for ta in at.text_area}
-    text_areas["Cách đọc (đánh số từng bước)"].set_value("1. Tìm đường GDP. 2. Đọc giá trị năm 2021.")
+    text_areas["📝 Cách đọc (đánh số từng bước)"].set_value("1. Tìm đường GDP. 2. Đọc giá trị năm 2021.")
     at.run(timeout=15)
     assert not at.exception, at.exception
 
-    save_btn = next(b for b in at.button if b.label == "Lưu câu hỏi")
+    save_btn = next(b for b in at.button if b.label == "💾 Lưu câu hỏi")
     save_btn.click()
     at.run(timeout=15)
     assert not at.exception, at.exception
@@ -583,7 +583,7 @@ def test_page3_edit_active_question_creates_second_version(doc_id: int, question
     text_inputs["Đáp án"].set_value("8.5")
     at.run(timeout=15)
 
-    save_btn = next(b for b in at.button if b.label == "Lưu câu hỏi")
+    save_btn = next(b for b in at.button if b.label == "💾 Lưu câu hỏi")
     save_btn.click()
     at.run(timeout=15)
     assert not at.exception, at.exception
@@ -673,7 +673,7 @@ def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_i
     assert "evidence" not in at.session_state["workspace_form_initial"], "gợi ý LLM không được kèm evidence"
 
     # evidence builder mặc định trống (nguồn "chart", description rỗng) — Lưu ngay phải bị chặn
-    save_btn = next(b for b in at.button if b.label == "Lưu câu hỏi")
+    save_btn = next(b for b in at.button if b.label == "💾 Lưu câu hỏi")
     save_btn.click()
     at.run(timeout=15)
     assert not at.exception, at.exception
@@ -692,10 +692,10 @@ def test_page3_llm_suggestion_prefill_requires_explicit_save(doc_id: int, user_i
 
     # annotator tự điền evidence tay rồi mới lưu được
     text_areas = {ta.label: ta for ta in at.text_area}
-    text_areas["Cách đọc (đánh số từng bước)"].set_value("1. Tìm đường GDP. 2. Đọc giá trị năm 2011 và 2021.")
+    text_areas["📝 Cách đọc (đánh số từng bước)"].set_value("1. Tìm đường GDP. 2. Đọc giá trị năm 2011 và 2021.")
     at.run(timeout=15)
 
-    save_btn = next(b for b in at.button if b.label == "Lưu câu hỏi")
+    save_btn = next(b for b in at.button if b.label == "💾 Lưu câu hỏi")
     save_btn.click()
     at.run(timeout=15)
     assert not at.exception, at.exception
