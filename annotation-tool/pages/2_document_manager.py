@@ -38,17 +38,14 @@ def confirm_delete(doc_id: int, title: str, n_questions: int) -> None:
     )
     if st.button("Xoá vĩnh viễn", type="primary", key=f"confirm_delete_{doc_id}"):
         with get_session() as session:
-            delete_document(session, doc_id)
+            delete_document(session, doc_id, deleted_by=current_user().id)
         st.session_state.pop("selected_doc_id", None)
         st.session_state.pop("doc_manager_table", None)
         st.session_state.pop("pending_delete_doc_id", None)
         st.rerun()
 
 
-def handle_row_delete_click() -> None:
-    click = st.session_state.get("doc_row_action")
-    if click:
-        st.session_state["pending_delete_doc_id"] = doc_ids[click["row"]]
+
 
 
 with get_session() as session:
@@ -67,7 +64,6 @@ with get_session() as session:
             "questions": len(d.questions),
             "created_by": users.get(d.created_by, ""),
             "created_at": d.created_at,
-            "actions": [":material/delete: Xoá"] if can_delete else [],
         }
         for d in docs
     ]
@@ -76,14 +72,28 @@ if not rows:
     st.info("Chưa có document nào — sang trang Nhập document trước.")
     st.stop()
 
+col1, col2 = st.columns(2)
+search_id = col1.text_input("🔍 Tìm theo ID", placeholder="Nhập ID (VD: 12)...")
+search_title = col2.text_input("🔍 Tìm theo Title", placeholder="Nhập từ khóa...")
+
+if search_id.strip():
+    rows = [r for r in rows if str(r["id"]) == search_id.strip()]
+if search_title.strip():
+    search_term = search_title.strip().lower()
+    rows = [r for r in rows if search_term in r["title"].lower()]
+
 df = pd.DataFrame(rows)
-event = st.dataframe(
-    df,
-    on_select="rerun",
-    selection_mode="single-row",
-    hide_index=True,
-    key="doc_manager_table",
-)
+if df.empty:
+    st.warning("Không tìm thấy document nào khớp với tìm kiếm.")
+    event = {}
+else:
+    event = st.dataframe(
+        df,
+        on_select="rerun",
+        selection_mode="single-row",
+        hide_index=True,
+        key="doc_manager_table",
+    )
 
 pending_delete_id = st.session_state.get("pending_delete_doc_id")
 if pending_delete_id and can_delete:
@@ -138,7 +148,7 @@ col_b.metric("Split", doc_data["split"] or "(chưa gán)")
 col_c.metric("Câu hỏi", n_questions)
 
 with st.expander(f"Xem toàn văn body_text ({word_count(doc_data['body_text'])} từ)", expanded=False):
-    st.write(doc_data["body_text"])
+    st.markdown(f"<div style='white-space: pre-wrap;'>{doc_data['body_text']}</div>", unsafe_allow_html=True)
 
 if charts_data:
     for col, chart in zip(st.columns(len(charts_data)), charts_data):
@@ -169,68 +179,41 @@ if can_edit:
             {"id": d.id, "title": d.title, "source_url": d.source_url} for d in session.scalars(select(Document)).all()
         ]
 
-    new_title = st.text_input("Title", value=doc_data["title"], key=k("title"))
-    if new_title.strip():
-        for m in find_duplicates(new_title, None, existing_docs, exclude_id=doc_id)[:5]:
-            if m.reason == "title_exact":
-                st.warning(f"⚠️ Title trùng hệt document #{m.document_id} — \"{m.title[:70]}\"")
-            else:
-                st.warning(f"⚠️ Title khá giống document #{m.document_id} ({m.score:.0%} tương đồng) — \"{m.title[:70]}\"")
+    with st.container(border=True):
+        st.markdown("#### 📄 Thông tin văn bản")
+        new_title = st.text_input("Title", value=doc_data["title"], key=k("title"))
+        if new_title.strip():
+            for m in find_duplicates(new_title, None, existing_docs, exclude_id=doc_id)[:5]:
+                if m.reason == "title_exact":
+                    st.warning(f"⚠️ Title trùng hệt document #{m.document_id} — \"{m.title[:70]}\"")
+                else:
+                    st.warning(f"⚠️ Title khá giống document #{m.document_id} ({m.score:.0%} tương đồng) — \"{m.title[:70]}\"")
 
-    new_body_text = st.text_area("Body text", value=doc_data["body_text"], height=260, key=k("body_text"))
-    if new_body_text.strip():
-        n_words = word_count(new_body_text)
-        st.caption(f"{n_words} từ" + (" ⚠️ vượt 2000 từ, cân nhắc rút gọn" if n_words > MAX_BODY_TEXT_WORDS else ""))
+        new_body_text = st.text_area("Body text", value=doc_data["body_text"], height=260, key=k("body_text"))
+        if new_body_text.strip():
+            n_words = word_count(new_body_text)
+            st.caption(f"{n_words} từ" + (" ⚠️ vượt 2000 từ, cân nhắc rút gọn" if n_words > MAX_BODY_TEXT_WORDS else ""))
 
-    col1, col2 = st.columns(2)
-    with col1:
-        new_provider = st.text_input("Provider", value=doc_data["source_provider"], key=k("provider"))
-        domain_default = doc_data["source_domain"] if doc_data["source_domain"] in DOMAINS else DOMAINS[0]
-        new_domain = st.selectbox("Domain", DOMAINS, index=DOMAINS.index(domain_default), key=k("domain"))
-    with col2:
-        new_url = st.text_input("URL", value=doc_data["source_url"] or "", key=k("url"))
-        if new_url.strip():
-            url_matches = [
-                m for m in find_duplicates(new_title, new_url, existing_docs, exclude_id=doc_id) if m.reason == "url_exact"
-            ]
-            for m in url_matches[:5]:
-                st.error(f"⚠️ URL trùng với document #{m.document_id} — \"{m.title[:70]}\"")
+    with st.container(border=True):
+        st.markdown("#### 🌐 Nguồn trích dẫn")
+        col1, col2 = st.columns(2)
+        with col1:
+            new_provider = st.text_input("Provider", value=doc_data["source_provider"], key=k("provider"))
+            domain_default = doc_data["source_domain"] if doc_data["source_domain"] in DOMAINS else DOMAINS[0]
+            new_domain = st.selectbox("Domain", DOMAINS, index=DOMAINS.index(domain_default), key=k("domain"))
+        with col2:
+            new_url = st.text_input("URL", value=doc_data["source_url"] or "", key=k("url"))
+            if new_url.strip():
+                url_matches = [
+                    m for m in find_duplicates(new_title, new_url, existing_docs, exclude_id=doc_id) if m.reason == "url_exact"
+                ]
+                for m in url_matches[:5]:
+                    st.error(f"⚠️ URL trùng với document #{m.document_id} — \"{m.title[:70]}\"")
 
-    st.subheader("Ảnh chart")
-    if n_questions > 0:
-        st.info("Document đã có câu hỏi, không thể tải lên lại ảnh chart để tránh hỏng dữ liệu evidence đã gán. Bạn chỉ có thể cập nhật loại chart cho các ảnh hiện tại.")
-        edited_chart_types = {}
-        for chart in charts_data:
-            edited_chart_types[chart["chart_id"]] = st.selectbox(
-                f"Loại chart {chart['chart_id']}", 
-                CHART_TYPES, 
-                index=CHART_TYPES.index(chart["chart_type"]) if chart["chart_type"] in CHART_TYPES else 0, 
-                key=k(f"type_{chart['chart_id']}")
-            )
-        new_chart_meta = None
-        uploaded_files = None
-    else:
-        st.info("Để trống nếu muốn giữ nguyên các chart hiện tại. Nếu tải lên ảnh mới, toàn bộ chart cũ sẽ bị xoá và ghi đè (tối đa 3 ảnh).")
-        uploaded_files = st.file_uploader(
-            "Chọn ảnh mới (tối đa 3)",
-            type=["png", "jpg", "jpeg", "webp"],
-            accept_multiple_files=True,
-            key=k("files"),
-        )
-        new_chart_meta = []
-        if uploaded_files:
-            for i, f in enumerate(uploaded_files[:3]):
-                st.markdown(f"**[CHART {i + 1}]** — {f.name}")
-                c_img, c_type = st.columns([1, 1])
-                with c_img:
-                    st.image(f, width=180)
-                with c_type:
-                    default_idx = 0
-                    if i < len(charts_data) and charts_data[i]["chart_type"] in CHART_TYPES:
-                        default_idx = CHART_TYPES.index(charts_data[i]["chart_type"])
-                    chart_type = st.selectbox(f"Loại chart #{i + 1}", CHART_TYPES, index=default_idx, key=k(f"new_type_{i}"))
-                new_chart_meta.append({"file": f, "chart_id": f"fig{i + 1}", "chart_type": chart_type})
-        else:
+    with st.container(border=True):
+        st.markdown("#### 🖼️ Ảnh chart")
+        if n_questions > 0:
+            st.info("Document đã có câu hỏi, không thể tải lên lại ảnh chart để tránh hỏng dữ liệu evidence đã gán. Bạn chỉ có thể cập nhật loại chart cho các ảnh hiện tại.")
             edited_chart_types = {}
             for chart in charts_data:
                 edited_chart_types[chart["chart_id"]] = st.selectbox(
@@ -239,8 +222,41 @@ if can_edit:
                     index=CHART_TYPES.index(chart["chart_type"]) if chart["chart_type"] in CHART_TYPES else 0, 
                     key=k(f"type_{chart['chart_id']}")
                 )
+            new_chart_meta = None
+            uploaded_files = None
+        else:
+            st.info("Để trống nếu muốn giữ nguyên các chart hiện tại. Nếu tải lên ảnh mới, toàn bộ chart cũ sẽ bị xoá và ghi đè (tối đa 3 ảnh).")
+            uploaded_files = st.file_uploader(
+                "Chọn ảnh mới (tối đa 3)",
+                type=["png", "jpg", "jpeg", "webp"],
+                accept_multiple_files=True,
+                key=k("files"),
+            )
+            new_chart_meta = []
+            if uploaded_files:
+                for i, f in enumerate(uploaded_files[:3]):
+                    with st.container(border=True):
+                        st.markdown(f"**[CHART {i + 1}]** — {f.name}")
+                        c_img, c_type = st.columns([1, 1])
+                        with c_img:
+                            st.image(f, width=180)
+                        with c_type:
+                            default_idx = 0
+                            if i < len(charts_data) and charts_data[i]["chart_type"] in CHART_TYPES:
+                                default_idx = CHART_TYPES.index(charts_data[i]["chart_type"])
+                            chart_type = st.selectbox(f"Loại chart #{i + 1}", CHART_TYPES, index=default_idx, key=k(f"new_type_{i}"))
+                        new_chart_meta.append({"file": f, "chart_id": f"fig{i + 1}", "chart_type": chart_type})
+            else:
+                edited_chart_types = {}
+                for chart in charts_data:
+                    edited_chart_types[chart["chart_id"]] = st.selectbox(
+                        f"Loại chart {chart['chart_id']}", 
+                        CHART_TYPES, 
+                        index=CHART_TYPES.index(chart["chart_type"]) if chart["chart_type"] in CHART_TYPES else 0, 
+                        key=k(f"type_{chart['chart_id']}")
+                    )
 
-    if st.button("Lưu thay đổi", type="primary", key=k("submit")):
+    if st.button("💾 Lưu thay đổi", type="primary", key=k("submit")):
         errors = []
         if not new_title.strip() or not new_body_text.strip():
             errors.append("Cần nhập title và body_text.")

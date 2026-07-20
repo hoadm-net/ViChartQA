@@ -39,7 +39,7 @@ st.title("✍️ Soạn câu hỏi")
 
 with get_session() as session:
     docs = session.scalars(select(Document).order_by(Document.id)).all()
-    doc_options = {f"#{d.id} — {d.title[:60]} ({len(d.questions)} câu hỏi)": d.id for d in docs}
+    doc_options = {f"#{d.id} — {d.title} ({len(d.questions)} câu hỏi)": d.id for d in docs}
 
 if not doc_options:
     st.info("Chưa có document nào — sang trang Nhập document trước.")
@@ -102,7 +102,7 @@ with get_session() as session:
 # ---- Document context ----
 st.subheader(doc.title)
 with st.expander(f"Xem toàn văn body_text ({word_count(doc.body_text)} từ)", expanded=False):
-    st.write(doc.body_text)
+    st.markdown(f"<div style='white-space: pre-wrap;'>{doc.body_text}</div>", unsafe_allow_html=True)
 if charts:
     for col, chart in zip(st.columns(len(charts)), charts):
         with col:

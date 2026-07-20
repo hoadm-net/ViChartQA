@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from models import Chart, Document, Evidence, Question, QuestionVersion
 
 
-def delete_document(session: Session, doc_id: int) -> None:
+def delete_document(session: Session, doc_id: int, deleted_by: int | None = None) -> None:
     """Xoá 1 document cùng toàn bộ câu hỏi/evidence/lịch sử liên quan.
 
     Xoá tường minh theo đúng thứ tự phụ thuộc (evidence/question_versions → questions
@@ -24,6 +24,17 @@ def delete_document(session: Session, doc_id: int) -> None:
         session.execute(delete(Evidence).where(Evidence.question_id.in_(question_ids)))
         session.execute(delete(QuestionVersion).where(QuestionVersion.question_id.in_(question_ids)))
         session.execute(delete(Question).where(Question.id.in_(question_ids)))
+    # Save to DeletedDocument before physical delete
+    doc = session.get(Document, doc_id)
+    if doc:
+        from models import DeletedDocument
+        deleted_record = DeletedDocument(
+            title=doc.title,
+            source_url=doc.source_url,
+            deleted_by=deleted_by
+        )
+        session.add(deleted_record)
+
     session.execute(delete(Chart).where(Chart.document_id == doc_id))
     session.execute(delete(Document).where(Document.id == doc_id))
     session.commit()
