@@ -178,3 +178,12 @@ class QuestionVersion(Base):
     __table_args__ = (
         CheckConstraint(f"change_type IN {tuple(QUESTION_VERSION_CHANGE_TYPES)}", name="ck_qversions_change_type"),
     )
+
+class DeletedDocument(Base):
+    __tablename__ = "deleted_documents"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    source_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    deleted_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    deleted_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)

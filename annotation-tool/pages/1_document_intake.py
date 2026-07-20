@@ -20,7 +20,7 @@ from auth import current_user, require_login
 from constants import CHART_TYPES, DOMAINS, MAX_BODY_TEXT_WORDS
 from db import get_session
 from dedup import find_duplicates
-from models import Chart, Document
+from models import Chart, Document, DeletedDocument
 from validation import check_chart_placeholders, word_count
 
 IMAGES_DIR = Path(__file__).resolve().parent.parent / "data" / "images"
@@ -44,64 +44,86 @@ with get_session() as session:
     existing_docs = [
         {"id": d.id, "title": d.title, "source_url": d.source_url} for d in session.scalars(select(Document)).all()
     ]
+    deleted_docs = [
+        {
+            "id": d.id, 
+            "title": d.title, 
+            "source_url": d.source_url, 
+            "deleted_at": d.deleted_at.strftime("%d/%m/%Y") if d.deleted_at else "không rõ"
+        } 
+        for d in session.scalars(select(DeletedDocument)).all()
+    ]
 
-title = st.text_input("Title", key=k("title"))
-if title.strip():
-    for m in find_duplicates(title, None, existing_docs)[:5]:
-        if m.reason == "title_exact":
-            st.warning(f"⚠️ Title trùng hệt document #{m.document_id} — \"{m.title[:70]}\"")
-        else:
-            st.warning(f"⚠️ Title khá giống document #{m.document_id} ({m.score:.0%} tương đồng) — \"{m.title[:70]}\"")
+with st.container(border=True):
+    st.markdown("#### 📄 Thông tin văn bản")
+    title = st.text_input("Title", key=k("title"))
+    if title.strip():
+        for m in find_duplicates(title, None, existing_docs)[:5]:
+            if m.reason == "title_exact":
+                st.warning(f"⚠️ Title trùng hệt document #{m.document_id} — \"{m.title[:70]}\"")
+            else:
+                st.warning(f"⚠️ Title khá giống document #{m.document_id} ({m.score:.0%} tương đồng) — \"{m.title[:70]}\"")
+        for m in find_duplicates(title, None, deleted_docs)[:2]:
+            deleted_doc = next(d for d in deleted_docs if d["id"] == m.document_id)
+            st.error(f"⚠️ Cảnh báo: Tài liệu có tiêu đề \"{m.title[:70]}\" đã từng bị xoá khỏi hệ thống vào ngày {deleted_doc['deleted_at']}. Vui lòng cân nhắc trước khi nhập lại.")
 
-st.subheader("Ảnh chart")
-uploaded_files = st.file_uploader(
-    "Chọn ảnh (tối đa 3 — ảnh ghép nhiều subplot vẫn tính là 1 ảnh, chọn loại chart 'subplot' bên dưới)",
-    type=["png", "jpg", "jpeg", "webp"],
-    accept_multiple_files=True,
-    key=k("files"),
-)
+    body_text = st.text_area(
+        "Body text — TOÀN VĂN bài báo, chèn [CHART N] tại đúng vị trí chart N xuất hiện",
+        height=260,
+        key=k("body_text"),
+        help=(
+            "Lấy toàn bộ text bài báo (không chỉ đoạn liên quan chart) vì có câu hỏi chỉ dựa vào "
+            "text mà không chart nào vẽ ra. Chèn [CHART 1], [CHART 2]... vào đúng chỗ ảnh xuất hiện "
+            "trong bài. Bỏ hẳn phần bài không liên quan tới chủ đề đang khai thác. Ưu tiên bài dưới "
+            f"{MAX_BODY_TEXT_WORDS} từ."
+        ),
+    )
 
-chart_meta = []
-if uploaded_files:
-    for i, f in enumerate(uploaded_files[:3]):
-        st.markdown(f"**[CHART {i + 1}]** — {f.name}")
-        c_img, c_type = st.columns([1, 1])
-        with c_img:
-            st.image(f, width=180)
-        with c_type:
-            chart_type = st.selectbox(f"Loại chart #{i + 1}", CHART_TYPES, key=k(f"type_{i}"))
-        chart_meta.append({"file": f, "chart_id": f"fig{i + 1}", "chart_type": chart_type})
+    if body_text.strip():
+        n_words = word_count(body_text)
+        st.caption(f"{n_words} từ" + (" ⚠️ vượt 2000 từ, cân nhắc chọn bài ngắn hơn" if n_words > MAX_BODY_TEXT_WORDS else ""))
 
-body_text = st.text_area(
-    "Body text — TOÀN VĂN bài báo, chèn [CHART N] tại đúng vị trí chart N xuất hiện",
-    height=260,
-    key=k("body_text"),
-    help=(
-        "Lấy toàn bộ text bài báo (không chỉ đoạn liên quan chart) vì có câu hỏi chỉ dựa vào "
-        "text mà không chart nào vẽ ra. Chèn [CHART 1], [CHART 2]... vào đúng chỗ ảnh xuất hiện "
-        "trong bài. Bỏ hẳn phần bài không liên quan tới chủ đề đang khai thác. Ưu tiên bài dưới "
-        f"{MAX_BODY_TEXT_WORDS} từ."
-    ),
-)
+with st.container(border=True):
+    st.markdown("#### 🖼️ Hình ảnh Chart")
+    uploaded_files = st.file_uploader(
+        "Chọn ảnh (tối đa 3 — ảnh ghép nhiều subplot vẫn tính là 1 ảnh, chọn loại chart 'subplot' bên dưới)",
+        type=["png", "jpg", "jpeg", "webp"],
+        accept_multiple_files=True,
+        key=k("files"),
+    )
 
-if body_text.strip():
-    n_words = word_count(body_text)
-    st.caption(f"{n_words} từ" + (" ⚠️ vượt 2000 từ, cân nhắc chọn bài ngắn hơn" if n_words > MAX_BODY_TEXT_WORDS else ""))
+    chart_meta = []
+    if uploaded_files:
+        for i, f in enumerate(uploaded_files[:3]):
+            with st.container(border=True):
+                st.markdown(f"**[CHART {i + 1}]** — {f.name}")
+                c_img, c_type = st.columns([1, 1])
+                with c_img:
+                    st.image(f, width=180)
+                with c_type:
+                    chart_type = st.selectbox(f"Loại chart #{i + 1}", CHART_TYPES, key=k(f"type_{i}"))
+                chart_meta.append({"file": f, "chart_id": f"fig{i + 1}", "chart_type": chart_type})
 
-st.subheader("Nguồn")
-col1, col2 = st.columns(2)
-with col1:
-    provider = st.text_input("Provider (vd. CafeF, GSO)", key=k("provider"))
-    domain = st.selectbox("Domain", DOMAINS, key=k("domain"))
-with col2:
-    url = st.text_input("URL", key=k("url"))
-    if url.strip():
-        url_matches = [m for m in find_duplicates(title, url, existing_docs) if m.reason == "url_exact"]
-        for m in url_matches[:5]:
-            st.error(f"⚠️ URL trùng với document #{m.document_id} — \"{m.title[:70]}\"")
-    st.caption(f"Ngày truy cập: tự động = hôm nay ({date.today()})")
+with st.container(border=True):
+    st.markdown("#### 🌐 Nguồn trích dẫn")
+    col1, col2 = st.columns(2)
+    with col1:
+        provider = st.text_input("Provider (vd. CafeF, GSO)", key=k("provider"))
+        domain = st.selectbox("Domain", DOMAINS, key=k("domain"))
+    with col2:
+        url = st.text_input("URL", key=k("url"))
+        if url.strip():
+            url_matches = [m for m in find_duplicates(title, url, existing_docs) if m.reason == "url_exact"]
+            for m in url_matches[:5]:
+                st.error(f"⚠️ URL trùng với document #{m.document_id} — \"{m.title[:70]}\"")
+            
+            deleted_url_matches = [m for m in find_duplicates(title, url, deleted_docs) if m.reason == "url_exact"]
+            for m in deleted_url_matches[:2]:
+                deleted_doc = next(d for d in deleted_docs if d["id"] == m.document_id)
+                st.error(f"⚠️ Cảnh báo: URL này thuộc về tài liệu đã bị xoá vào ngày {deleted_doc['deleted_at']}. Vui lòng cân nhắc.")
+        st.caption(f"Ngày truy cập: tự động = hôm nay ({date.today()})")
 
-if st.button("Lưu document", type="primary", key=k("submit")):
+if st.button("💾 Lưu document", type="primary", key=k("submit")):
     errors = []
     if not title.strip() or not body_text.strip():
         errors.append("Cần nhập title và body_text.")
