@@ -17,7 +17,7 @@ from constants import VLM_MODELS
 from db import get_session
 from models import Document, Evidence, Question
 from question_ui import render_question_form
-from validation import word_count
+from validation import get_dataset_deficit_ranking, word_count
 from versioning import record_version
 from vlm_client import VLMError, generate_candidates
 
@@ -39,7 +39,14 @@ st.title("✍️ Soạn câu hỏi")
 
 with get_session() as session:
     docs = session.scalars(select(Document).order_by(Document.id)).all()
-    doc_options = {f"#{d.id} — {d.title} ({len(d.questions)} câu hỏi)": d.id for d in docs}
+    def _doc_label(d) -> str:
+        active_cnt = len([q for q in d.questions if q.status == "active"])
+        total_cnt = len(d.questions)
+        if active_cnt == total_cnt:
+            return f"#{d.id} — {d.title} ({active_cnt} câu hỏi)"
+        return f"#{d.id} — {d.title} ({active_cnt} câu hỏi active / {total_cnt} tổng)"
+
+    doc_options = {_doc_label(d): d.id for d in docs}
 
 if not doc_options:
     st.info("Chưa có document nào — sang trang Nhập document trước.")
@@ -56,6 +63,30 @@ if "workspace_doc_id" in st.session_state:
 
 selected_label = st.selectbox("Chọn document", doc_keys, index=default_index)
 doc_id = doc_options[selected_label]
+
+with get_session() as session:
+    all_db_questions = [
+        {"question_type": q.question_type, "hop_type": q.hop_type, "status": q.status}
+        for q in session.scalars(select(Question)).all()
+        if q.status == "active"
+    ]
+
+top3_q_deficits, priority_hops, multihop_pct = get_dataset_deficit_ranking(all_db_questions)
+
+with st.container(border=True):
+    st.markdown("### 📊 ĐIỀU HƯỚNG CHỈ TIÊU TAXONOMY TOÀN DATASET (6.000 QA Target)")
+    col_pct, col_def1, col_def2 = st.columns([1, 1.5, 1.5])
+    with col_pct:
+        delta_val = f"{multihop_pct - 50.0:+.1f}%"
+        st.metric("Tỷ lệ Multi-hop (Target ≥50%)", f"{multihop_pct}%", delta=delta_val)
+    with col_def1:
+        st.markdown("**🚨 Top 3 Question Types Thiếu Nhất:**")
+        for item in top3_q_deficits:
+            st.write(f"- `{item['type']}`: {item['current_pct']}% (Thiếu `+{item['deficit']}%`)")
+    with col_def2:
+        st.markdown("**🎯 Hop Types Cần Ưu Tiên Bổ Sung:**")
+        for h in priority_hops:
+            st.write(f"- `{h}`")
 
 if st.session_state.get("workspace_doc_id") != doc_id:
     st.session_state["workspace_doc_id"] = doc_id
@@ -99,17 +130,8 @@ with get_session() as session:
         for q in existing_questions
     ]
 
-# ---- Document context ----
+# ---- Document Header ----
 st.subheader(doc.title)
-with st.expander(f"Xem toàn văn body_text ({word_count(doc.body_text)} từ)", expanded=False):
-    st.markdown(f"<div style='white-space: pre-wrap;'>{doc.body_text}</div>", unsafe_allow_html=True)
-if charts:
-    for col, chart in zip(st.columns(len(charts)), charts):
-        with col:
-            st.markdown(f"**{chart.chart_id}** ({chart.chart_type})")
-            image_path = ANNOTATION_ROOT / chart.image_path
-            if image_path.exists():
-                st.image(str(image_path), width="stretch")
 
 # ---- LLM suggestions (tham khảo, không lưu) ----
 st.divider()
@@ -134,9 +156,19 @@ if st.button("Sinh gợi ý"):
         for c in charts
     ]
     seed_questions = [q["question_text"] for q in questions_display]
+    top3_q_types = [item["type"] for item in top3_q_deficits]
     try:
-        with st.spinner(f"Đang gọi {model}..."):
-            raw = generate_candidates(model, doc.title, doc.body_text, charts_payload, seed_questions, n=int(n))
+        with st.spinner(f"Đang gọi {model} (Ưu tiên: {', '.join(top3_q_types)} & {', '.join(priority_hops)})..."):
+            raw = generate_candidates(
+                model,
+                doc.title,
+                doc.body_text,
+                charts_payload,
+                seed_questions,
+                n=int(n),
+                target_q_types=top3_q_types,
+                target_hops=priority_hops,
+            )
         st.session_state["llm_suggestions"] = raw
     except VLMError as exc:
         st.error(str(exc))
@@ -191,7 +223,7 @@ for q in visible_questions:
             for v in q["versions"]:
                 st.caption(f"v{v['version_number']} · {v['change_type']} · {v['edited_at']:%Y-%m-%d %H:%M}")
 
-# ---- Thêm/sửa câu hỏi ----
+# ---- Thêm/sửa câu hỏi (Side-by-Side Split View) ----
 st.divider()
 st.subheader("Thêm/sửa câu hỏi")
 form_initial = st.session_state.get("workspace_form_initial")

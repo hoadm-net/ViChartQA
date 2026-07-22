@@ -10,7 +10,13 @@ import operator
 import re
 from dataclasses import dataclass, field
 
-from constants import DERIVATION_REQUIRED_TYPES, MULTI_HOP_TYPES, RELAXED_ACCURACY_TOLERANCE
+from constants import (
+    DERIVATION_REQUIRED_TYPES,
+    HOP_TYPES,
+    MULTI_HOP_TYPES,
+    QUESTION_TYPE_TARGETS,
+    RELAXED_ACCURACY_TOLERANCE,
+)
 
 # ---------------------------------------------------------------------------
 # Numeric parsing / matching
@@ -225,3 +231,61 @@ def check_chart_placeholders(body_text: str, n_charts: int) -> tuple[bool, str]:
 
 def word_count(text: str) -> int:
     return len(text.split())
+
+
+def get_dataset_deficit_ranking(all_active_questions: list[dict]) -> tuple[list[dict], list[str], float]:
+    """Computes real-time deficit percentages across all active questions in the DB
+    referencing QUESTION_TYPE_TARGETS in constants.py (docs/02-dataset-design.md).
+    Returns:
+      - top3_q_deficits: Top 3 question_types needing prioritization (sorted by highest deficit)
+      - priority_hops: Priority hop_types needing prioritization (multi-hop text_and_chart/charts if total multi-hop < 50%)
+      - multihop_pct: Current dataset-wide multi-hop percentage
+    """
+    total_q = len(all_active_questions)
+    if total_q == 0:
+        top3_defaults = [
+            {"type": "compositional", "current_pct": 0.0, "target_pct": 30.0, "deficit": 30.0},
+            {"type": "visual_compositional", "current_pct": 0.0, "target_pct": 20.0, "deficit": 20.0},
+            {"type": "data_retrieval", "current_pct": 0.0, "target_pct": 15.0, "deficit": 15.0},
+        ]
+        return top3_defaults, ["text_and_chart", "charts"], 0.0
+
+    q_counts = {k: 0 for k in QUESTION_TYPE_TARGETS}
+    hop_counts = {h: 0 for h in HOP_TYPES}
+
+    for q in all_active_questions:
+        qt = q.get("question_type")
+        ht = q.get("hop_type")
+        if qt in q_counts:
+            q_counts[qt] += 1
+        if ht in hop_counts:
+            hop_counts[ht] += 1
+
+    q_deficits = []
+    for qt, target_ratio in QUESTION_TYPE_TARGETS.items():
+        curr_ratio = q_counts[qt] / total_q
+        deficit_pct = (target_ratio - curr_ratio) * 100.0
+        q_deficits.append({
+            "type": qt,
+            "current_pct": round(curr_ratio * 100.0, 1),
+            "target_pct": round(target_ratio * 100.0, 1),
+            "deficit": round(deficit_pct, 1),
+        })
+
+    top3_q_deficits = sorted(q_deficits, key=lambda x: x["deficit"], reverse=True)[:3]
+
+    multihop_n = hop_counts.get("text_and_chart", 0) + hop_counts.get("charts", 0)
+    multihop_pct = round((multihop_n / total_q) * 100.0, 1)
+
+    priority_hops = []
+    if multihop_pct < 50.0:
+        if hop_counts.get("text_and_chart", 0) <= hop_counts.get("charts", 0):
+            priority_hops = ["text_and_chart", "charts"]
+        else:
+            priority_hops = ["charts", "text_and_chart"]
+    else:
+        sorted_hops = sorted(hop_counts.items(), key=lambda x: x[1])
+        priority_hops = [h[0] for h in sorted_hops[:2]]
+
+    return top3_q_deficits, priority_hops, multihop_pct
+

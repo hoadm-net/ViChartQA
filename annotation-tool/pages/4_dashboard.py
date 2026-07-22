@@ -10,22 +10,13 @@ import streamlit as st
 from sqlalchemy import select
 
 from auth import require_login
-from constants import HOP_TYPES, MULTI_HOP_TYPES, QUESTION_TYPES
+from constants import HOP_TYPES, MULTI_HOP_TYPES, QUESTION_TYPE_TARGETS, QUESTION_TYPES
 from db import get_session
 from models import Document, Question, QuestionVersion, User
+from validation import get_dataset_deficit_ranking
 
 require_login()
 st.title("📈 Dashboard")
-
-QUESTION_TYPE_TARGETS = {
-    "data_retrieval": 0.15,
-    "visual": 0.15,
-    "compositional": 0.30,
-    "visual_compositional": 0.20,
-    "multiple_choice": 0.07,
-    "fact_check": 0.07,
-    "unanswerable": 0.06,
-}
 
 with get_session() as session:
     documents = session.scalars(select(Document)).all()
@@ -58,8 +49,23 @@ st.divider()
 
 # --- Taxonomy distribution vs targets ---
 active = [q for q in questions if q.status == "active"]
+active_dict_list = [{"question_type": q.question_type, "hop_type": q.hop_type} for q in active]
+top3_q_deficits, priority_hops, multihop_pct = get_dataset_deficit_ranking(active_dict_list)
+
 with st.container(border=True):
     st.markdown(f"#### 🎯 Tỷ trọng Taxonomy (trên {len(active)} câu active)")
+    
+    col_def1, col_def2 = st.columns(2)
+    with col_def1:
+        st.markdown(r"**🚨 Top 3 Question Types Thiếu Nhất ($\Delta P$):**")
+        for item in top3_q_deficits:
+            st.write(f"- `{item['type']}`: Thực tế `{item['current_pct']}%` / Target `{item['target_pct']}%` (Thiếu `+{item['deficit']}%`)")
+    with col_def2:
+        st.markdown("**🎯 Hop Types Cần Ưu Tiên Bổ Sung:**")
+        for h in priority_hops:
+            st.write(f"- `{h}`")
+    st.divider()
+
     c_qtype, c_hop = st.columns(2)
     
     with c_qtype:

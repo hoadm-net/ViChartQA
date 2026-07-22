@@ -19,37 +19,61 @@ from constants import HOP_TYPES, QUESTION_TYPES, VLM_MODEL_SLUGS
 
 _PLACEHOLDER_RE = re.compile(r"\[CHART (\d+)\]")
 
-SYSTEM_PROMPT = """Bạn là annotator sinh câu hỏi cho bộ dữ liệu ViChartQA (Hỏi-Đáp biểu đồ tiếng Việt,
-multi-hop reasoning trên text + chart). Nhiệm vụ: đọc 1 document (title + body_text + danh sách chart
-kèm loại biểu đồ), sinh thêm các câu hỏi ứng viên rải đều theo 2 chiều taxonomy sau, KHÔNG trùng các câu đã có.
+def build_dynamic_system_prompt(
+    target_q_types: list[str] | None = None,
+    target_hops: list[str] | None = None,
+    n: int = 5,
+) -> str:
+    """Constructs a token-optimized system prompt with Dynamic Chain-of-Thought (CoT) Injection."""
+    target_q_str = ", ".join(target_q_types) if target_q_types else ", ".join(QUESTION_TYPES)
+    target_hop_str = ", ".join(target_hops) if target_hops else ", ".join(HOP_TYPES)
 
-Chiều 1 — question_type ({n_question_types} giá trị): {question_types}
-Chiều 2 — hop_type ({n_hop_types} giá trị): {hop_types}
-  - text: trả lời được chỉ từ body_text, không cần chart nào.
-  - chart: trả lời được chỉ từ 1 chart.
-  - text_and_chart: cần cả body_text lẫn 1 chart kết hợp (vd 1 claim/số liệu chỉ có
-    trong text, đối chiếu/tính toán với chart; hoặc xác minh 1 phát biểu đúng/sai cần
-    cả 2 nguồn).
-  - charts: cần ≥2 chart, body_text là cầu nối.
+    prompt = f"""You are a VLM question generator for ViChartQA dataset.
+Task: Read 1 document (title + body_text + inlined chart images) & generate exactly {n} NEW candidate questions.
 
-CHỈ sinh câu hỏi + đáp án, KHÔNG sinh evidence — annotator sẽ tự đọc chart/text và điền
-evidence (description các bước đọc, hoặc quote) sau khi dùng gợi ý làm mẫu.
+TARGET PRIORITY (MUST FOLLOW):
+- Target Question Types (prioritize these): [{target_q_str}]
+- Target Hop Types (prioritize these): [{target_hop_str}]
+"""
 
-Với mỗi câu hỏi trả về JSON object:
+    cot_rules = []
+    active_hops = target_hops or HOP_TYPES
+    active_q_types = target_q_types or QUESTION_TYPES
+
+    if "text_and_chart" in active_hops:
+        cot_rules.append("👉 For 'text_and_chart': Pick 1 number/fact ONLY in body_text (NOT in any chart) -> Compare/calculate with a chart value.")
+
+    if "charts" in active_hops:
+        cot_rules.append("👉 For 'charts': Find 1 common metric/entity bridging Chart 1 & Chart 2 -> Compare across charts.")
+
+    if "multiple_choice" in active_q_types:
+        cot_rules.append("👉 For 'multiple_choice': Provide exactly 4 options in 'choices': ['A...', 'B...', 'C...', 'D...'].")
+
+    if "fact_check" in active_q_types:
+        cot_rules.append("👉 For 'fact_check': Question requires BOTH text + chart verification -> 'answer' MUST be 'Đúng' or 'Sai'.")
+
+    if "unanswerable" in active_q_types:
+        cot_rules.append("👉 For 'unanswerable': Ask a reasonable question whose answer CANNOT be derived from text/charts -> 'answer'='unanswerable'.")
+
+    if cot_rules:
+        prompt += "\nGENERATION GUIDELINES:\n" + "\n".join(cot_rules) + "\n"
+
+    prompt += f"""
+OUTPUT FORMAT: Return raw JSON object ONLY, NO markdown codeblock:
 {{
-  "question": str, "answer": str, "answer_type": "numeric"|"text"|"unanswerable"|"boolean",
-  "question_type": one of question_types, "hop_type": one of hop_types,
-  "derivation": str (công thức số học nếu answer_type=numeric và question_type compositional/visual_compositional, else ""),
-  "choices": [str,str,str,str] nếu question_type=multiple_choice else null
-}}
-
-Chỉ trả về JSON: {{"questions": [...]}}. Không thêm giải thích ngoài JSON.
-""".format(
-    question_types=QUESTION_TYPES,
-    hop_types=HOP_TYPES,
-    n_question_types=len(QUESTION_TYPES),
-    n_hop_types=len(HOP_TYPES),
-)
+  "questions": [
+    {{
+      "question": "text in Vietnamese",
+      "answer": "exact answer",
+      "answer_type": "numeric"|"text"|"unanswerable"|"boolean",
+      "question_type": "one of target_q_types",
+      "hop_type": "one of target_hops",
+      "derivation": "math formula if numeric compositional else ''",
+      "choices": ["A...", "B...", "C...", "D..."]
+    }}
+  ]
+}}"""
+    return prompt
 
 
 def _build_user_content(title: str, body_text: str, charts: list[dict], seed_questions: list[str], n: int) -> list[dict]:
@@ -127,13 +151,21 @@ def _call_openrouter(model_slug: str, system: str, user_content: list[dict]) -> 
 
 
 def generate_candidates(
-    model: str, title: str, body_text: str, charts: list[dict], seed_questions: list[str], n: int = 5
+    model: str,
+    title: str,
+    body_text: str,
+    charts: list[dict],
+    seed_questions: list[str],
+    n: int = 5,
+    target_q_types: list[str] | None = None,
+    target_hops: list[str] | None = None,
 ) -> list[dict]:
-    """`charts[i]` cần {"chart_id", "chart_type", "image_data_uri"} — image_data_uri do
-    caller tự đọc file + base64-encode (xem pages/3_question_workspace.py), None nếu
-    ảnh không đọc được (khi đó chart chỉ còn được nhắc tới bằng chart_type qua text)."""
+    """`charts[i]` cần {"chart_id", "chart_type", "image_data_uri"}. Accepts optional
+    target_q_types and target_hops to generate questions prioritizing dataset deficits."""
     if model not in VLM_MODEL_SLUGS:
         raise VLMError(f"Model không hỗ trợ: {model}")
+    system_prompt = build_dynamic_system_prompt(target_q_types=target_q_types, target_hops=target_hops, n=n)
     user_content = _build_user_content(title, body_text, charts, seed_questions, n)
-    raw = _call_openrouter(VLM_MODEL_SLUGS[model], SYSTEM_PROMPT, user_content)
+    raw = _call_openrouter(VLM_MODEL_SLUGS[model], system_prompt, user_content)
     return _parse_response(raw)
+

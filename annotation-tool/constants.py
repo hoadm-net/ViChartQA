@@ -49,6 +49,17 @@ ROLES = ["annotator", "pm", "data_intake"]
 
 SPLITS = ["train", "val", "test"]
 
+# Tỷ trọng mục tiêu chuẩn per docs/02-dataset-design.md
+QUESTION_TYPE_TARGETS = {
+    "compositional": 0.30,
+    "visual_compositional": 0.20,
+    "data_retrieval": 0.15,
+    "visual": 0.15,
+    "multiple_choice": 0.08,
+    "fact_check": 0.06,
+    "unanswerable": 0.06,
+}
+
 # Tất cả model gọi qua OpenRouter (1 API key, 1 SDK OpenAI-compatible) — slug xác nhận
 # trực tiếp qua https://openrouter.ai/api/v1/models ngày 13/07/2026 (đều hỗ trợ
 # response_format/structured_outputs, cần cho JSON output của generate_candidates()).

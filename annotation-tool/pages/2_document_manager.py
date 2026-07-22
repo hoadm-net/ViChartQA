@@ -61,7 +61,7 @@ with get_session() as session:
             "status": d.status,
             "split": d.split or "",
             "charts": len(d.charts),
-            "questions": len(d.questions),
+            "questions": len([q for q in d.questions if q.status == "active"]),
             "created_by": users.get(d.created_by, ""),
             "created_at": d.created_at,
         }
