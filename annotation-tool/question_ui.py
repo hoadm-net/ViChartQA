@@ -15,6 +15,11 @@ from constants import ANSWER_TYPES, HOP_TYPES, QUESTION_TYPES
 from validation import check_derivation, derivation_required, is_duplicate_question, validate_evidence, word_count
 
 
+def get_question_label(editing_id: int | None = None) -> str:
+    """Trả về nhãn hiển thị cho hộp nhập câu hỏi dựa trên ID đang sửa."""
+    return f"Câu hỏi (ID: #{editing_id})" if type(editing_id) is int and editing_id > 0 else "Câu hỏi"
+
+
 def render_evidence_builder(k, charts_by_id: dict, initial_evidence: list[dict] | None = None, hop_type: str = "chart") -> list[dict]:
     init_evidence = initial_evidence or []
     if init_evidence:
@@ -118,7 +123,15 @@ def render_question_form(prefix: str, doc, charts_by_id: dict, existing_question
                 "<div style='background-color:#eff6ff; border-left:5px solid #3b82f6; padding:10px 14px; border-radius:6px; font-weight:bold; font-size:1.1em; color:#1e40af; margin-bottom:12px;'>📝 Nội dung câu hỏi</div>",
                 unsafe_allow_html=True,
             )
-            question_text = st.text_area("Câu hỏi", value=initial.get("question_text", ""), key=k("question_text"), height=100)
+            q_label = get_question_label(editing_id)
+            is_editing = q_label != "Câu hỏi"
+            question_text = st.text_area(
+                q_label,
+                value=initial.get("question_text", ""),
+                key=k("question_text"),
+                height=100,
+                help="ID của câu hỏi trong cơ sở dữ liệu (chỉ hiển thị khi đang sửa)" if is_editing else None,
+            )
             
             c1, c2 = st.columns(2)
             with c1:
