@@ -527,17 +527,22 @@ def test_page3_manual_add_creates_active_question_with_version(doc_id: int, user
     # AppTest does not support .image, so we can't assert it here.
 
     text_areas = {ta.label: ta for ta in at.text_area}
+    assert "Câu hỏi" in text_areas, "Không tìm thấy trường nhập liệu 'Câu hỏi' mặc định"
     text_areas["Câu hỏi"].set_value("GDP năm 2021 là bao nhiêu?")
     text_inputs = {ti.label: ti for ti in at.text_input}
     text_inputs["Đáp án"].set_value("8.4")
     # question_type/answer_type left at defaults: data_retrieval/numeric; hop_type
     # explicitly "chart" để khớp với evidence nguồn chart điền bên dưới.
-    hop_select = next(sb for sb in at.selectbox if sb.label == "Số bước (hop_type)")
+    hop_select = next(sb for sb in at.selectbox if sb.label == "Loại bằng chứng (hop_type)")
     hop_select.set_value("chart")
     at.run(timeout=15)
 
-    # evidence: nguồn mặc định "chart" — description giờ là 1 textarea tự do (các bước
-    # truy hồi giá trị), không cần data_table điền trước.
+    # Set source radio to "chart"
+    source_radio = next(r for r in at.radio if r.label == "Nguồn dữ liệu")
+    source_radio.set_value("chart")
+    at.run(timeout=15)
+
+    # evidence: description giờ là 1 textarea tự do (các bước truy hồi giá trị)
     text_areas = {ta.label: ta for ta in at.text_area}
     text_areas["📝 Cách đọc (đánh số từng bước)"].set_value("1. Tìm đường GDP. 2. Đọc giá trị năm 2021.")
     at.run(timeout=15)
@@ -578,6 +583,9 @@ def test_page3_edit_active_question_creates_second_version(doc_id: int, question
     edit_btn.click()
     at.run(timeout=15)
     assert not at.exception, at.exception
+
+    # Xác thực nhãn hiển thị ID câu hỏi đang sửa:
+    assert any(ta.label == f"Câu hỏi (ID: #{question_id})" for ta in at.text_area), "Không tìm thấy trường nhập liệu 'Câu hỏi' hiển thị ID"
 
     text_inputs = {ti.label: ti for ti in at.text_input}
     text_inputs["Đáp án"].set_value("8.5")

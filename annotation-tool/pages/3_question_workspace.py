@@ -10,7 +10,8 @@ import base64
 from pathlib import Path
 
 import streamlit as st
-from sqlalchemy import delete, select
+from sqlalchemy import case, delete, func, select
+from sqlalchemy.orm import selectinload
 
 from auth import current_user, require_login
 from constants import VLM_MODELS
@@ -38,15 +39,27 @@ require_login()
 st.title("✍️ Soạn câu hỏi")
 
 with get_session() as session:
-    docs = session.scalars(select(Document).order_by(Document.id)).all()
-    def _doc_label(d) -> str:
-        active_cnt = len([q for q in d.questions if q.status == "active"])
-        total_cnt = len(d.questions)
+    doc_stmt = (
+        select(
+            Document.id,
+            Document.title,
+            func.count(case((Question.status == "active", Question.id))).label("active_cnt"),
+            func.count(Question.id).label("total_cnt"),
+        )
+        .outerjoin(Question, Document.id == Question.document_id)
+        .group_by(Document.id, Document.title)
+        .order_by(Document.id)
+    )
+    doc_rows = session.execute(doc_stmt).all()
+    doc_options = {}
+    ordered_doc_ids = []
+    for d_id, d_title, active_cnt, total_cnt in doc_rows:
+        ordered_doc_ids.append(d_id)
         if active_cnt == total_cnt:
-            return f"#{d.id} — {d.title} ({active_cnt} câu hỏi)"
-        return f"#{d.id} — {d.title} ({active_cnt} câu hỏi active / {total_cnt} tổng)"
-
-    doc_options = {_doc_label(d): d.id for d in docs}
+            label = f"#{d_id} — {d_title} ({active_cnt} câu hỏi)"
+        else:
+            label = f"#{d_id} — {d_title} ({active_cnt} câu hỏi active / {total_cnt} tổng)"
+        doc_options[label] = d_id
 
 if not doc_options:
     st.info("Chưa có document nào — sang trang Nhập document trước.")
@@ -56,20 +69,17 @@ doc_keys = list(doc_options.keys())
 default_index = 0
 if "workspace_doc_id" in st.session_state:
     target_id = st.session_state["workspace_doc_id"]
-    for i, d in enumerate(docs):
-        if d.id == target_id:
-            default_index = i
-            break
+    if target_id in ordered_doc_ids:
+        default_index = ordered_doc_ids.index(target_id)
 
 selected_label = st.selectbox("Chọn document", doc_keys, index=default_index)
 doc_id = doc_options[selected_label]
 
 with get_session() as session:
-    all_db_questions = [
-        {"question_type": q.question_type, "hop_type": q.hop_type, "status": q.status}
-        for q in session.scalars(select(Question)).all()
-        if q.status == "active"
-    ]
+    active_q_rows = session.execute(
+        select(Question.question_type, Question.hop_type).where(Question.status == "active")
+    ).all()
+    all_db_questions = [{"question_type": qt, "hop_type": ht} for qt, ht in active_q_rows]
 
 top3_q_deficits, priority_hops, multihop_pct = get_dataset_deficit_ranking(all_db_questions)
 
@@ -94,7 +104,15 @@ if st.session_state.get("workspace_doc_id") != doc_id:
     st.session_state.pop("workspace_form_initial", None)
 
 with get_session() as session:
-    doc = session.get(Document, doc_id)
+    doc = session.scalar(
+        select(Document)
+        .where(Document.id == doc_id)
+        .options(
+            selectinload(Document.charts),
+            selectinload(Document.questions).selectinload(Question.evidence),
+            selectinload(Document.questions).selectinload(Question.versions),
+        )
+    )
     charts = sorted(doc.charts, key=lambda c: c.chart_id)
     existing_questions = sorted(doc.questions, key=lambda q: q.id)
     charts_by_id = {
@@ -104,8 +122,6 @@ with get_session() as session:
         }
         for c in charts
     }
-    # materialize evidence/versions while the session is open — both are lazy
-    # relationships and questions_display is read again after this block closes
     questions_display = [
         {
             "id": q.id,

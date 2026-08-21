@@ -42,16 +42,19 @@ k = lambda name: f"{name}_{gen}"  # noqa: E731 — reset widget keys after mỗi
 # lúc đã soạn xong cả body_text/chart (xem dedup.py).
 with get_session() as session:
     existing_docs = [
-        {"id": d.id, "title": d.title, "source_url": d.source_url} for d in session.scalars(select(Document)).all()
+        {"id": d_id, "title": d_title, "source_url": d_url}
+        for d_id, d_title, d_url in session.execute(select(Document.id, Document.title, Document.source_url)).all()
     ]
     deleted_docs = [
         {
-            "id": d.id, 
-            "title": d.title, 
-            "source_url": d.source_url, 
-            "deleted_at": d.deleted_at.strftime("%d/%m/%Y") if d.deleted_at else "không rõ"
-        } 
-        for d in session.scalars(select(DeletedDocument)).all()
+            "id": d_id,
+            "title": d_title,
+            "source_url": d_url,
+            "deleted_at": d_at.strftime("%d/%m/%Y") if d_at else "không rõ",
+        }
+        for d_id, d_title, d_url, d_at in session.execute(
+            select(DeletedDocument.id, DeletedDocument.title, DeletedDocument.source_url, DeletedDocument.deleted_at)
+        ).all()
     ]
 
 with st.container(border=True):

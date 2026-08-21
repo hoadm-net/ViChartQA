@@ -10,14 +10,14 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from auth import current_user, require_login
 from constants import DOMAINS, MAX_BODY_TEXT_WORDS, CHART_TYPES
 from db import get_session
 from dedup import find_duplicates
 from documents import delete_document
-from models import Document, User, Chart
+from models import Document, User, Chart, Question
 from validation import check_chart_placeholders, word_count
 
 ANNOTATION_ROOT = Path(__file__).resolve().parent.parent
@@ -45,27 +45,45 @@ def confirm_delete(doc_id: int, title: str, n_questions: int) -> None:
         st.rerun()
 
 
-
-
-
 with get_session() as session:
-    docs = session.scalars(select(Document).order_by(Document.id.desc())).all()
+    chart_counts = dict(
+        session.execute(
+            select(Chart.document_id, func.count(Chart.id)).group_by(Chart.document_id)
+        ).all()
+    )
+    active_q_counts = dict(
+        session.execute(
+            select(Question.document_id, func.count(Question.id))
+            .where(Question.status == "active")
+            .group_by(Question.document_id)
+        ).all()
+    )
     users = {u.id: u.name for u in session.scalars(select(User)).all()}
-    doc_ids = [d.id for d in docs]
+    doc_stmt = select(
+        Document.id,
+        Document.title,
+        Document.source_domain,
+        Document.source_provider,
+        Document.status,
+        Document.split,
+        Document.created_by,
+        Document.created_at,
+    ).order_by(Document.id.desc())
+    doc_records = session.execute(doc_stmt).all()
     rows = [
         {
-            "id": d.id,
-            "title": d.title[:70],
-            "domain": d.source_domain,
-            "provider": d.source_provider,
-            "status": d.status,
-            "split": d.split or "",
-            "charts": len(d.charts),
-            "questions": len([q for q in d.questions if q.status == "active"]),
-            "created_by": users.get(d.created_by, ""),
-            "created_at": d.created_at,
+            "id": d_id,
+            "title": d_title[:70] if d_title else "",
+            "domain": d_domain,
+            "provider": d_provider,
+            "status": d_status,
+            "split": d_split or "",
+            "charts": chart_counts.get(d_id, 0),
+            "questions": active_q_counts.get(d_id, 0),
+            "created_by": users.get(d_created_by, ""),
+            "created_at": d_created_at,
         }
-        for d in docs
+        for d_id, d_title, d_domain, d_provider, d_status, d_split, d_created_by, d_created_at in doc_records
     ]
 
 if not rows:
@@ -176,7 +194,8 @@ if can_edit:
     # — dừng sớm thay vì phát hiện sau khi đã sửa xong cả body_text (xem dedup.py).
     with get_session() as session:
         existing_docs = [
-            {"id": d.id, "title": d.title, "source_url": d.source_url} for d in session.scalars(select(Document)).all()
+            {"id": d_id, "title": d_title, "source_url": d_url}
+            for d_id, d_title, d_url in session.execute(select(Document.id, Document.title, Document.source_url)).all()
         ]
 
     with st.container(border=True):
