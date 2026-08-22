@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from constants import ANSWER_TYPES, HOP_TYPES, QUESTION_TYPES
+from constants import ANSWER_TYPES, DERIVATION_REQUIRED_TYPES, HOP_TYPES, QUESTION_TYPES
 from validation import check_derivation, derivation_required, is_duplicate_question, validate_evidence, word_count
 
 
@@ -183,11 +183,17 @@ def render_question_form(prefix: str, doc, charts_by_id: dict, existing_question
                 choices = None
 
             derivation = initial.get("derivation") or ""
-            if derivation_required(answer_type, question_type):
+            show_derivation = question_type in DERIVATION_REQUIRED_TYPES or derivation_required(answer_type, question_type) or bool(derivation)
+            if show_derivation:
                 st.divider()
                 c_deriv, c_btn = st.columns([3, 1])
                 with c_deriv:
-                    derivation = st.text_input("derivation (công thức, vd: 8.4 - 2.5)", value=derivation, key=k("derivation"))
+                    derivation = st.text_input(
+                        "derivation (công thức tính toán, vd: 8.4 - 2.5)",
+                        value=derivation,
+                        key=k("derivation"),
+                        help="Bắt buộc khi đáp án là số đối với câu hỏi compositional / visual_compositional.",
+                    )
                 with c_btn:
                     st.write("") 
                     st.write("") 

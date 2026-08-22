@@ -748,3 +748,25 @@ def test_page5_export_assign_split_and_generate_file(doc_id: int, user_id: int):
     assert at.session_state["export_preview"], "expected at least one document in the export preview"
 
 
+def test_page3_derivation_shown_for_compositional_question_types(doc_id: int, user_id: int):
+    at = AppTest.from_file(str(ROOT / "pages" / "3_question_workspace.py"))
+    at.session_state["user"] = type("U", (), {"id": user_id})()
+    at.run(timeout=15)
+    _select_document(at, doc_id)
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+
+    # Chọn question_type = compositional
+    qtype_sb = next(sb for sb in at.selectbox if sb.label == "Loại câu hỏi (question_type)")
+    qtype_sb.set_value("compositional")
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+    assert any("derivation" in ti.label for ti in at.text_input), "derivation text input must be visible for compositional"
+
+    # Chọn question_type = visual_compositional
+    qtype_sb.set_value("visual_compositional")
+    at.run(timeout=15)
+    assert not at.exception, at.exception
+    assert any("derivation" in ti.label for ti in at.text_input), "derivation text input must be visible for visual_compositional"
+
+
