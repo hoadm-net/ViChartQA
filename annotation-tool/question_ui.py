@@ -27,62 +27,133 @@ def render_evidence_builder(k, charts_by_id: dict, initial_evidence: list[dict] 
     else:
         n_hops_default = 2 if hop_type in ("text_and_chart", "charts") else 1
     
+    ev_list_key = k("ev_items_state")
+    ev_ver_key = k("ev_version")
+    ev_ver = st.session_state.get(ev_ver_key, 0)
+
+    if ev_list_key not in st.session_state:
+        items = []
+        for i in range(3):
+            if i < len(init_evidence):
+                items.append({
+                    "source": init_evidence[i].get("source", "chart"),
+                    "chart_id": init_evidence[i].get("chart_id"),
+                    "description": init_evidence[i].get("description", ""),
+                    "quote": init_evidence[i].get("quote", ""),
+                })
+            else:
+                if hop_type == "text_and_chart":
+                    src = "chart" if i == 0 else "text"
+                elif hop_type == "text":
+                    src = "text"
+                else:
+                    src = "chart"
+                items.append({"source": src, "chart_id": None, "description": "", "quote": ""})
+        st.session_state[ev_list_key] = items
+
     n_hops = st.number_input("🔢 Số hop", min_value=1, max_value=3, value=n_hops_default, key=k("n_hops"))
 
-    evidence_items = []
     chart_label_map = {c["chart_id"]: cid for cid, c in charts_by_id.items()}
     chart_labels = list(chart_label_map.keys())
 
-    for i in range(int(n_hops)):
+    total_n = int(n_hops)
+
+    def _sync_current_hops():
+        for j in range(total_n):
+            s_key = k(f"source_{ev_ver}_{j}")
+            c_key = k(f"chart_{ev_ver}_{j}")
+            d_key = k(f"description_{ev_ver}_{j}")
+            q_key = k(f"quote_{ev_ver}_{j}")
+
+            src = st.session_state.get(s_key, st.session_state[ev_list_key][j].get("source", "chart"))
+            chart_lbl = st.session_state.get(c_key)
+            cid = chart_label_map.get(chart_lbl, st.session_state[ev_list_key][j].get("chart_id"))
+            desc = st.session_state.get(d_key, st.session_state[ev_list_key][j].get("description", ""))
+            qte = st.session_state.get(q_key, st.session_state[ev_list_key][j].get("quote", ""))
+
+            st.session_state[ev_list_key][j] = {
+                "source": src,
+                "chart_id": cid,
+                "description": desc,
+                "quote": qte,
+            }
+
+    evidence_items = []
+
+    for i in range(total_n):
         with st.container(border=True):
-            st.markdown(f"**Hop {i + 1}**")
-            ev_init = init_evidence[i] if i < len(init_evidence) else {}
-            
+            c_title, c_move = st.columns([3, 2])
+            with c_title:
+                st.markdown(f"**Hop {i + 1}**")
+            with c_move:
+                if total_n > 1:
+                    m1, m2 = st.columns(2)
+                    with m1:
+                        if i > 0 and st.button("⬆️ Lên", key=k(f"move_up_{i}_{ev_ver}"), help="Đổi thứ tự với Hop phía trên"):
+                            _sync_current_hops()
+                            st.session_state[ev_list_key][i], st.session_state[ev_list_key][i - 1] = (
+                                st.session_state[ev_list_key][i - 1],
+                                st.session_state[ev_list_key][i],
+                            )
+                            st.session_state[ev_ver_key] = ev_ver + 1
+                            st.rerun()
+                    with m2:
+                        if i < total_n - 1 and st.button("⬇️ Xuống", key=k(f"move_down_{i}_{ev_ver}"), help="Đổi thứ tự với Hop phía dưới"):
+                            _sync_current_hops()
+                            st.session_state[ev_list_key][i], st.session_state[ev_list_key][i + 1] = (
+                                st.session_state[ev_list_key][i + 1],
+                                st.session_state[ev_list_key][i],
+                            )
+                            st.session_state[ev_ver_key] = ev_ver + 1
+                            st.rerun()
+
+            ev_cur = st.session_state[ev_list_key][i]
             source_opts = ["chart", "text"]
-            if "source" in ev_init:
-                source_default = ev_init["source"]
-            else:
-                if hop_type == "text_and_chart":
-                    source_default = "chart" if i == 0 else "text"
-                elif hop_type == "text":
-                    source_default = "text"
-                else:
-                    source_default = "chart"
-            
+            source_default = ev_cur.get("source", "chart")
+            if source_default not in source_opts:
+                source_default = "chart"
+
             source = st.radio(
                 "Nguồn dữ liệu",
                 source_opts,
-                index=source_opts.index(source_default) if source_default in source_opts else 0,
-                key=k(f"source_{i}"),
+                index=source_opts.index(source_default),
+                key=k(f"source_{ev_ver}_{i}"),
                 horizontal=True,
             )
-            
+
             if source == "chart" and chart_labels:
                 c1, c2 = st.columns([1, 2])
                 with c1:
                     default_label = next(
-                        (lbl for lbl, cid in chart_label_map.items() if cid == ev_init.get("chart_id")), chart_labels[0]
+                        (lbl for lbl, cid in chart_label_map.items() if cid == ev_cur.get("chart_id")),
+                        chart_labels[0],
                     )
                     chart_label = st.selectbox(
-                        "📌 Chọn Chart", chart_labels, index=chart_labels.index(default_label), key=k(f"chart_{i}")
+                        "📌 Chọn Chart",
+                        chart_labels,
+                        index=chart_labels.index(default_label),
+                        key=k(f"chart_{ev_ver}_{i}"),
                     )
                     sel_chart_id = chart_label_map[chart_label]
-                    preview_path = charts_by_id[sel_chart_id].get("image_path")
+                    preview_path = charts_by_id.get(sel_chart_id, {}).get("image_path")
                     if preview_path:
                         st.image(preview_path)
-                        
+
                 with c2:
                     description = st.text_area(
                         "📝 Cách đọc (đánh số từng bước)",
-                        value=ev_init.get("description") or "",
-                        key=k(f"description_{i}"),
+                        value=ev_cur.get("description") or "",
+                        key=k(f"description_{ev_ver}_{i}"),
                         height=150,
-                        help="Đánh số từng bước truy hồi giá trị, đủ để người khác đọc lại và tự tìm đúng điểm dữ liệu trên ảnh."
+                        help="Đánh số từng bước truy hồi giá trị, đủ để người khác đọc lại và tự tìm đúng điểm dữ liệu trên ảnh.",
                     )
                 evidence_items.append({"hop": i + 1, "source": "chart", "chart_id": sel_chart_id, "description": description})
             else:
                 quote = st.text_area(
-                    "📝 Quote (dán nguyên văn từ body_text)", value=ev_init.get("quote", ""), key=k(f"quote_{i}"), height=100
+                    "📝 Quote (dán nguyên văn từ body_text)",
+                    value=ev_cur.get("quote") or "",
+                    key=k(f"quote_{ev_ver}_{i}"),
+                    height=100,
                 )
                 evidence_items.append({"hop": i + 1, "source": "text", "quote": quote})
 
@@ -113,7 +184,7 @@ def render_question_form(prefix: str, doc, charts_by_id: dict, existing_question
     k = lambda name: f"{prefix}_{name}_{gen}"  # noqa: E731 — reset widget keys after each save
     initial = initial or {}
     editing_id = initial.get("id")
-    other_questions = [q for q in existing_questions if q.id != editing_id]
+    other_questions = [q for q in existing_questions if (q.id if hasattr(q, "id") else q.get("id")) != editing_id]
 
     # Row 1: Content (Left) | Classification (Right)
     col_q, col_cat = st.columns([1, 1])
@@ -123,6 +194,85 @@ def render_question_form(prefix: str, doc, charts_by_id: dict, existing_question
                 "<div style='background-color:#eff6ff; border-left:5px solid #3b82f6; padding:10px 14px; border-radius:6px; font-weight:bold; font-size:1.1em; color:#1e40af; margin-bottom:12px;'>📝 Nội dung câu hỏi</div>",
                 unsafe_allow_html=True,
             )
+
+            # Dropdown chọn câu hỏi hoặc tạo mới
+            q_options = ["➕ [Tạo câu hỏi mới]"]
+            q_map = {"➕ [Tạo câu hỏi mới]": None}
+
+            is_llm_draft = (editing_id is None and bool(initial.get("question_text")))
+            if is_llm_draft:
+                draft_label = f"💡 [Mẫu gợi ý / Nháp] {initial.get('question_text', '')[:45]}..."
+                q_options.append(draft_label)
+                q_map[draft_label] = "draft"
+
+            for q in existing_questions:
+                q_id = q.id if hasattr(q, "id") else q.get("id")
+                q_txt = q.question_text if hasattr(q, "question_text") else q.get("question_text", "")
+                q_type = q.question_type if hasattr(q, "question_type") else q.get("question_type", "")
+                h_type = q.hop_type if hasattr(q, "hop_type") else q.get("hop_type", "")
+                status_str = f" ({q.status})" if hasattr(q, "status") and q.status != "active" else ""
+                short_txt = q_txt.replace("\n", " ")[:45]
+                lbl = f"#{q_id}: [{q_type}/{h_type}] {short_txt}...{status_str}"
+                q_options.append(lbl)
+                q_map[lbl] = q
+
+            default_idx = 0
+            if editing_id is not None:
+                for idx, opt in enumerate(q_options):
+                    target_q = q_map.get(opt)
+                    if target_q is not None and not isinstance(target_q, str):
+                        t_id = target_q.id if hasattr(target_q, "id") else target_q.get("id")
+                        if t_id == editing_id:
+                            default_idx = idx
+                            break
+            elif is_llm_draft and len(q_options) > 1:
+                default_idx = 1
+
+            selected_q_opt = st.selectbox(
+                "📋 Chọn câu hỏi để sửa hoặc tạo mới:",
+                q_options,
+                index=default_idx,
+                key=k("select_question_dropdown"),
+                help="Chọn một câu hỏi đã có để sửa trực tiếp, hoặc chọn [Tạo câu hỏi mới].",
+            )
+
+            # Trigger reload if user selects a different question from dropdown
+            if selected_q_opt != q_options[default_idx]:
+                chosen = q_map.get(selected_q_opt)
+                if chosen is None:
+                    st.session_state.pop(f"{prefix}_form_initial", None)
+                elif chosen == "draft":
+                    pass
+                else:
+                    if isinstance(chosen, dict):
+                        q_dict = dict(chosen)
+                    else:
+                        q_dict = {
+                            "id": chosen.id,
+                            "question_text": chosen.question_text,
+                            "answer": chosen.answer,
+                            "equivalent_answers": chosen.equivalent_answers,
+                            "answer_type": chosen.answer_type,
+                            "question_type": chosen.question_type,
+                            "hop_type": chosen.hop_type,
+                            "derivation": chosen.derivation,
+                            "choices": chosen.choices,
+                            "status": chosen.status,
+                            "evidence": [
+                                {
+                                    "hop": e.hop_order,
+                                    "source": e.source,
+                                    "chart_id": e.chart_id,
+                                    "description": e.description,
+                                    "quote": e.quote,
+                                }
+                                for e in sorted(chosen.evidence, key=lambda e: e.hop_order)
+                            ] if hasattr(chosen, "evidence") and chosen.evidence else [],
+                        }
+                    st.session_state[f"{prefix}_form_initial"] = q_dict
+                st.session_state[f"{prefix}_form_gen"] = gen + 1
+                st.rerun()
+
             q_label = get_question_label(editing_id)
             is_editing = q_label != "Câu hỏi"
             question_text = st.text_area(
@@ -199,7 +349,10 @@ def render_question_form(prefix: str, doc, charts_by_id: dict, existing_question
                     st.write("") 
                     if derivation and st.button("Kiểm tra", key=k("check_derivation")):
                         ok, msg = check_derivation(derivation, answer)
-                        (st.success if ok else st.warning)(msg)
+                        if ok:
+                            st.success(f"✅ {msg}")
+                        else:
+                            st.error(f"❌ {msg}")
 
     # Row 2: Document Context (Left) | Evidence Builder & Save (Right)
     col_ctx, col_ev = st.columns([1, 1])
@@ -228,12 +381,18 @@ def render_question_form(prefix: str, doc, charts_by_id: dict, existing_question
             ev_result = validate_evidence(hop_type, evidence_items, charts_by_id, doc.body_text)
             errors += ev_result.errors
 
-            if derivation:
+            # Kiểm tra derivation:
+            if derivation and str(derivation).strip():
                 d_ok, d_msg = check_derivation(derivation, answer)
                 if not d_ok:
-                    warnings.append(f"derivation: {d_msg}")
+                    errors.append(f"❌ Derivation không hợp lệ: {d_msg}. Vui lòng kiểm tra và viết lại công thức.")
+            elif derivation_required(answer_type, question_type):
+                errors.append("❌ Loại câu hỏi này (compositional / visual_compositional với đáp án số) bắt buộc phải điền derivation.")
 
-            existing_texts = [q.question_text for q in other_questions]
+            existing_texts = [
+                q.question_text if hasattr(q, "question_text") else q.get("question_text", "")
+                for q in other_questions
+            ]
             if is_duplicate_question(question_text, existing_texts):
                 warnings.append("Câu hỏi có vẻ trùng với câu đã có trong document này.")
 
@@ -253,7 +412,7 @@ def render_question_form(prefix: str, doc, charts_by_id: dict, existing_question
                 "answer_type": answer_type,
                 "question_type": question_type,
                 "hop_type": hop_type,
-                "derivation": derivation or None,
+                "derivation": derivation.strip() if derivation else None,
                 "choices": choices,
                 "evidence": evidence_items,
             }

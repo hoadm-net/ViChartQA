@@ -98,25 +98,48 @@ def eval_derivation(formula: str) -> float:
     Only numeric literals and + - * / ( ) are allowed — no names, calls, or
     attribute access, so this is safe to run on annotator-submitted text.
     """
+    if not formula or not str(formula).strip():
+        raise DerivationError("Công thức derivation trống.")
+    cleaned = str(formula).strip()
+    # Normalize Vietnamese decimal commas: e.g. 8,4 -> 8.4
+    cleaned = re.sub(r"(\d+),(\d{1,2})(?!\d)", r"\1.\2", cleaned)
+    # Normalize thousands separator: e.g. 14,740 -> 14740
+    cleaned = re.sub(r"(\d+),(\d{3})", r"\1\2", cleaned)
+    # Normalize percentage: e.g. 5% -> (5/100)
+    cleaned = re.sub(r"(\d+(?:\.\d+)?)\s*%", r"(\1 / 100)", cleaned)
     try:
-        tree = ast.parse(formula, mode="eval")
+        tree = ast.parse(cleaned, mode="eval")
     except SyntaxError as exc:
-        raise DerivationError(f"Không parse được công thức: {exc}") from exc
+        raise DerivationError(f"Không parse được công thức '{formula}': {exc}") from exc
     return _eval_node(tree.body)
 
 
 def check_derivation(formula: str, answer: str, tolerance: float = RELAXED_ACCURACY_TOLERANCE) -> tuple[bool, str]:
     """Returns (ok, message). ok=False on parse error or mismatch with `answer`."""
+    if not formula or not str(formula).strip():
+        return False, "Công thức derivation trống."
     try:
         computed = eval_derivation(formula)
     except DerivationError as exc:
         return False, str(exc)
+    except ZeroDivisionError:
+        return False, "Lỗi chia cho 0 trong công thức."
+    except Exception as exc:
+        return False, f"Lỗi tính toán: {exc}"
+    
     target = parse_numeric(answer)
     if target is None:
-        return False, "Answer không phải số, không so sánh được với derivation."
-    if abs(computed - target) <= max(abs(target) * tolerance, 1e-9):
-        return True, f"Khớp: công thức = {computed:g}, answer = {target:g}"
-    return False, f"Lệch: công thức = {computed:g}, answer = {target:g}"
+        return False, f"Đáp án '{answer}' không phải số, không thể đối chiếu với kết quả công thức ({computed:g})."
+    
+    if abs(target) == 0:
+        if abs(computed) <= 1e-9:
+            return True, f"Khớp: công thức = {computed:g}, đáp án = {target:g}"
+        return False, f"Lệch: công thức = {computed:g}, đáp án = {target:g}"
+
+    diff_ratio = abs(computed - target) / abs(target)
+    if diff_ratio <= tolerance or abs(computed - target) <= 1e-6:
+        return True, f"Khớp: công thức = {computed:g}, đáp án = {target:g}"
+    return False, f"Lệch: kết quả công thức ({computed:g}) không khớp đáp án ({target:g}) vượt quá dung sai {int(tolerance * 100)}%"
 
 
 def derivation_required(answer_type: str, question_type: str) -> bool:
