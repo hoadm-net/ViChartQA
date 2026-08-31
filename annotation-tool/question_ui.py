@@ -206,13 +206,15 @@ def render_question_form(prefix: str, doc, charts_by_id: dict, existing_question
                 q_map[draft_label] = "draft"
 
             for q in existing_questions:
+                q_status = q.status if hasattr(q, "status") else q.get("status", "active")
+                if q_status != "active":
+                    continue
                 q_id = q.id if hasattr(q, "id") else q.get("id")
                 q_txt = q.question_text if hasattr(q, "question_text") else q.get("question_text", "")
                 q_type = q.question_type if hasattr(q, "question_type") else q.get("question_type", "")
                 h_type = q.hop_type if hasattr(q, "hop_type") else q.get("hop_type", "")
-                status_str = f" ({q.status})" if hasattr(q, "status") and q.status != "active" else ""
                 short_txt = q_txt.replace("\n", " ")[:45]
-                lbl = f"#{q_id}: [{q_type}/{h_type}] {short_txt}...{status_str}"
+                lbl = f"#{q_id}: [{q_type}/{h_type}] {short_txt}..."
                 q_options.append(lbl)
                 q_map[lbl] = q
 
