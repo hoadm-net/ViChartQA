@@ -344,7 +344,7 @@ def render_question_form(prefix: str, doc, charts_by_id: dict, existing_question
                         "derivation (công thức tính toán, vd: 8.4 - 2.5)",
                         value=derivation,
                         key=k("derivation"),
-                        help="Bắt buộc khi đáp án là số đối với câu hỏi compositional / visual_compositional.",
+                        help="Công thức tính toán số học (không bắt buộc, vd: 8.4 - 2.5).",
                     )
                 with c_btn:
                     st.write("") 
@@ -383,13 +383,11 @@ def render_question_form(prefix: str, doc, charts_by_id: dict, existing_question
             ev_result = validate_evidence(hop_type, evidence_items, charts_by_id, doc.body_text)
             errors += ev_result.errors
 
-            # Kiểm tra derivation:
+            # Kiểm tra derivation (nếu có nhập thì kiểm tra tính hợp lệ):
             if derivation and str(derivation).strip():
                 d_ok, d_msg = check_derivation(derivation, answer)
                 if not d_ok:
                     errors.append(f"❌ Derivation không hợp lệ: {d_msg}. Vui lòng kiểm tra và viết lại công thức.")
-            elif derivation_required(answer_type, question_type):
-                errors.append("❌ Loại câu hỏi này (compositional / visual_compositional với đáp án số) bắt buộc phải điền derivation.")
 
             existing_texts = [
                 q.question_text if hasattr(q, "question_text") else q.get("question_text", "")
