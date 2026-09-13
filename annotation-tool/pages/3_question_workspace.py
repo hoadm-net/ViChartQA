@@ -8,6 +8,7 @@ lần tạo/sửa/rút một câu hỏi được ghi lại ở question_versions
 
 import base64
 from pathlib import Path
+import random
 
 import streamlit as st
 from sqlalchemy import case, delete, func, select
@@ -16,7 +17,7 @@ from sqlalchemy.orm import selectinload
 from auth import current_user, require_login
 from constants import VLM_MODELS
 from db import get_session
-from models import Document, Evidence, Question
+from models import Chart, Document, Evidence, Question
 from question_ui import render_question_form
 from validation import get_dataset_deficit_ranking, word_count
 from versioning import record_version
@@ -39,27 +40,38 @@ require_login()
 st.title("✍️ Soạn câu hỏi")
 
 with get_session() as session:
+    chart_cnt_subq = (
+        select(Chart.document_id, func.count(Chart.id).label("chart_cnt"))
+        .group_by(Chart.document_id)
+        .subquery()
+    )
     doc_stmt = (
         select(
             Document.id,
             Document.title,
+            func.coalesce(chart_cnt_subq.c.chart_cnt, 0).label("chart_cnt"),
             func.count(case((Question.status == "active", Question.id))).label("active_cnt"),
             func.count(Question.id).label("total_cnt"),
         )
+        .outerjoin(chart_cnt_subq, Document.id == chart_cnt_subq.c.document_id)
         .outerjoin(Question, Document.id == Question.document_id)
-        .group_by(Document.id, Document.title)
+        .group_by(Document.id, Document.title, chart_cnt_subq.c.chart_cnt)
         .order_by(Document.id)
     )
     doc_rows = session.execute(doc_stmt).all()
     doc_options = {}
     ordered_doc_ids = []
-    for d_id, d_title, active_cnt, total_cnt in doc_rows:
+    multi_chart_docs = []
+    for d_id, d_title, chart_cnt, active_cnt, total_cnt in doc_rows:
         ordered_doc_ids.append(d_id)
+        chart_tag = f"[{chart_cnt} charts]"
         if active_cnt == total_cnt:
-            label = f"#{d_id} — {d_title} ({active_cnt} câu hỏi)"
+            label = f"#{d_id} — {d_title} {chart_tag} ({active_cnt} câu hỏi)"
         else:
-            label = f"#{d_id} — {d_title} ({active_cnt} câu hỏi active / {total_cnt} tổng)"
+            label = f"#{d_id} — {d_title} {chart_tag} ({active_cnt} câu hỏi active / {total_cnt} tổng)"
         doc_options[label] = d_id
+        if chart_cnt >= 2:
+            multi_chart_docs.append((d_id, active_cnt))
 
 if not doc_options:
     st.info("Chưa có document nào — sang trang Nhập document trước.")
@@ -72,8 +84,35 @@ if "workspace_doc_id" in st.session_state:
     if target_id in ordered_doc_ids:
         default_index = ordered_doc_ids.index(target_id)
 
-selected_label = st.selectbox("Chọn document", doc_keys, index=default_index)
-doc_id = doc_options[selected_label]
+col_select, col_btn = st.columns([3, 1])
+with col_select:
+    selected_label = st.selectbox("Chọn document", doc_keys, index=default_index)
+    doc_id = doc_options[selected_label]
+
+with col_btn:
+    st.write("")
+    st.write("")
+    if st.button("🎲 Random doc (≥2 charts)", help="Chọn ngẫu nhiên tài liệu có từ 2 biểu đồ trở lên, ưu tiên tài liệu có ít câu hỏi nhất"):
+        if not multi_chart_docs:
+            st.warning("Chưa có document nào có từ 2 charts trở lên.")
+        else:
+            min_q = min(cnt for _, cnt in multi_chart_docs)
+            pool = [did for did, cnt in multi_chart_docs if cnt == min_q]
+            curr_id = st.session_state.get("workspace_doc_id")
+            candidates = [did for did in pool if did != curr_id]
+            if not candidates:
+                # Anti-deadlock: nếu chỉ có duy nhất doc hiện tại ở mức min_q, chuyển sang nhóm có số câu hỏi thấp tiếp theo
+                next_pool = [did for did, cnt in multi_chart_docs if cnt > min_q]
+                if next_pool:
+                    next_min_q = min(cnt for did, cnt in multi_chart_docs if cnt > min_q)
+                    candidates = [did for did, cnt in multi_chart_docs if cnt == next_min_q and did != curr_id] or [curr_id]
+                else:
+                    candidates = pool
+            chosen_id = random.choice(candidates)
+            st.session_state["workspace_doc_id"] = chosen_id
+            st.session_state.pop("llm_suggestions", None)
+            st.session_state.pop("workspace_form_initial", None)
+            st.rerun()
 
 with get_session() as session:
     active_q_rows = session.execute(
