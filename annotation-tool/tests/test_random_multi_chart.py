@@ -64,20 +64,20 @@ def test_cloud_db_query_and_multi_chart_counts(cloud_session):
     # Kiểm tra hiệu năng: dưới 500ms cho truy vấn toàn bộ 1.473 docs và 10.009 questions
     assert duration_ms < 500, f"Truy vấn mất quá nhiều thời gian: {duration_ms:.1f}ms"
 
-    # Lọc danh sách multi_chart_docs
-    multi_chart_docs = [(d_id, active_cnt) for d_id, d_title, chart_cnt, active_cnt, total_cnt in doc_rows if chart_cnt >= 2]
-    assert len(multi_chart_docs) == 533, f"Kỳ vọng 533 documents có >= 2 charts nhưng nhận được {len(multi_chart_docs)}"
+    # Lọc danh sách multi_chart_docs có chart_cnt >= 2 và active_cnt >= 2
+    multi_chart_docs = [(d_id, active_cnt) for d_id, d_title, chart_cnt, active_cnt, total_cnt in doc_rows if chart_cnt >= 2 and active_cnt >= 2]
+    assert len(multi_chart_docs) == 463, f"Kỳ vọng 463 documents có >= 2 charts và >= 2 quests nhưng nhận được {len(multi_chart_docs)}"
 
-    # Kiểm tra nhóm ít câu hỏi nhất (min_q = 0)
+    # Kiểm tra nhóm ít câu hỏi nhất (min_q = 2)
     min_q = min(cnt for _, cnt in multi_chart_docs)
-    assert min_q == 0, f"Kỳ vọng min active questions là 0, nhận được {min_q}"
+    assert min_q == 2, f"Kỳ vọng min active questions là 2, nhận được {min_q}"
 
-    zero_q_docs = [did for did, cnt in multi_chart_docs if cnt == 0]
-    assert len(zero_q_docs) == 69, f"Kỳ vọng 69 documents có 0 questions, nhận được {len(zero_q_docs)}"
+    two_q_docs = [did for did, cnt in multi_chart_docs if cnt == 2]
+    assert len(two_q_docs) == 1, f"Kỳ vọng 1 document có 2 questions, nhận được {len(two_q_docs)}"
 
 
 def test_priority_random_selection_logic(cloud_session):
-    """Kiểm tra thuật toán chọn ngẫu nhiên có ưu tiên ít câu hỏi nhất."""
+    """Kiểm tra thuật toán chọn ngẫu nhiên có ưu tiên ít câu hỏi nhất (với điều kiện >= 2 câu hỏi)."""
     chart_cnt_subq = (
         select(Chart.document_id, func.count(Chart.id).label("chart_cnt"))
         .group_by(Chart.document_id)
@@ -94,32 +94,33 @@ def test_priority_random_selection_logic(cloud_session):
         .group_by(Document.id, chart_cnt_subq.c.chart_cnt)
     )
     doc_rows = cloud_session.execute(doc_stmt).all()
-    multi_chart_docs = [(d_id, active_cnt) for d_id, chart_cnt, active_cnt in doc_rows if chart_cnt >= 2]
-    zero_q_doc_ids = set(did for did, cnt in multi_chart_docs if cnt == 0)
+    multi_chart_docs = [(d_id, active_cnt) for d_id, chart_cnt, active_cnt in doc_rows if chart_cnt >= 2 and active_cnt >= 2]
+    doc_q_map = dict(multi_chart_docs)
 
-    # Giả lập 50 lần bấm random liên tiếp từ annotator
-    curr_id = None
-    for i in range(50):
-        min_q = min(cnt for _, cnt in multi_chart_docs)
-        pool = [did for did, cnt in multi_chart_docs if cnt == min_q]
-        candidates = [did for did in pool if did != curr_id]
-        if not candidates:
-            next_pool = [did for did, cnt in multi_chart_docs if cnt > min_q]
-            if next_pool:
-                next_min_q = min(cnt for did, cnt in multi_chart_docs if cnt > min_q)
-                candidates = [did for did, cnt in multi_chart_docs if cnt == next_min_q and did != curr_id] or [curr_id]
-            else:
-                candidates = pool
-        chosen_id = random.choice(candidates)
+    # Lần 1: Chưa có curr_id, phải chọn doc có min_q (2 câu hỏi)
+    min_q = min(cnt for _, cnt in multi_chart_docs)
+    assert min_q == 2
+    pool = [did for did, cnt in multi_chart_docs if cnt == min_q]
+    chosen_1 = random.choice(pool)
+    assert doc_q_map[chosen_1] == 2
 
-        # Khẳng định:
-        # 1. Document được chọn PHẢI nằm trong nhóm có 0 câu hỏi (vì nhóm này có 69 tài liệu)
-        assert chosen_id in zero_q_doc_ids, f"Lần {i}: Doc #{chosen_id} không thuộc nhóm 0 câu hỏi"
-        # 2. Không được trùng với doc đang xem ngay trước đó (loại trừ curr_id thành công)
-        if curr_id is not None:
-            assert chosen_id != curr_id, f"Lần {i}: Bị chọn trùng lại doc hiện tại #{curr_id}"
+    # Lần 2: curr_id là chosen_1 (doc duy nhất có 2 câu hỏi). Anti-deadlock phải nhảy sang mức kế tiếp (4 câu hỏi)
+    candidates = [did for did in pool if did != chosen_1]
+    assert len(candidates) == 0
+    next_pool = [did for did, cnt in multi_chart_docs if cnt > min_q]
+    next_min_q = min(cnt for did, cnt in multi_chart_docs if cnt > min_q)
+    assert next_min_q == 4
+    candidates = [did for did, cnt in multi_chart_docs if cnt == next_min_q and did != chosen_1]
+    assert len(candidates) == 11  # có 11 doc có 4 câu hỏi
+    chosen_2 = random.choice(candidates)
+    assert doc_q_map[chosen_2] == 4
 
-        curr_id = chosen_id
+    # Lần 3: curr_id là chosen_2 (1 trong 11 doc có 4 câu hỏi). Thuật toán tiếp tục chọn trong 10 doc còn lại của mức 4 câu hỏi
+    candidates_2 = [did for did, cnt in multi_chart_docs if cnt == next_min_q and did != chosen_2]
+    assert len(candidates_2) == 10
+    chosen_3 = random.choice(candidates_2)
+    assert doc_q_map[chosen_3] == 4
+    assert chosen_3 != chosen_2
 
 
 def test_anti_deadlock_when_min_group_has_single_element():

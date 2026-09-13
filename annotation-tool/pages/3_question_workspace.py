@@ -70,7 +70,7 @@ with get_session() as session:
         else:
             label = f"#{d_id} — {d_title} {chart_tag} ({active_cnt} câu hỏi active / {total_cnt} tổng)"
         doc_options[label] = d_id
-        if chart_cnt >= 2:
+        if chart_cnt >= 2 and active_cnt >= 2:
             multi_chart_docs.append((d_id, active_cnt))
 
 if not doc_options:
@@ -92,9 +92,9 @@ with col_select:
 with col_btn:
     st.write("")
     st.write("")
-    if st.button("🎲 Random doc (≥2 charts)", help="Chọn ngẫu nhiên tài liệu có từ 2 biểu đồ trở lên, ưu tiên tài liệu có ít câu hỏi nhất"):
+    if st.button("🎲 Random doc (≥2 charts)", help="Chọn ngẫu nhiên tài liệu có từ 2 biểu đồ và từ 2 câu hỏi trở lên, ưu tiên tài liệu có ít câu hỏi nhất"):
         if not multi_chart_docs:
-            st.warning("Chưa có document nào có từ 2 charts trở lên.")
+            st.warning("Chưa có document nào có từ 2 charts và từ 2 câu hỏi trở lên.")
         else:
             min_q = min(cnt for _, cnt in multi_chart_docs)
             pool = [did for did, cnt in multi_chart_docs if cnt == min_q]
