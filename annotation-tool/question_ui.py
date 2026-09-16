@@ -9,10 +9,81 @@ a new Question or UPDATE an existing one + call versioning.record_version().
 
 from __future__ import annotations
 
+import json
+
 import streamlit as st
+import streamlit.components.v1 as components
 
 from constants import ANSWER_TYPES, DERIVATION_REQUIRED_TYPES, HOP_TYPES, QUESTION_TYPES
 from validation import check_derivation, derivation_required, is_duplicate_question, validate_evidence, word_count
+
+
+def render_copy_button(text: str, label: str = "📋 Copy body_text", key: str = "copy_btn") -> None:
+    """Hiển thị nút sao chép text vào clipboard client-side bằng JavaScript, có phản hồi trực quan."""
+    btn_id = f"copy_btn_{abs(hash(key))}"
+    escaped_text = json.dumps(text or "")
+    html_code = f"""
+    <div style="display: flex; align-items: center; justify-content: flex-end; margin: 0; padding: 0;">
+        <button id="{btn_id}" onclick="copyToClipboard_{btn_id}()" style="
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #86efac;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 13px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        " onmouseover="this.style.backgroundColor='#dcfce7'" onmouseout="this.style.backgroundColor='#f0fdf4'">
+            {label}
+        </button>
+    </div>
+    <script>
+    function copyToClipboard_{btn_id}() {{
+        const content = {escaped_text};
+        function onCopied() {{
+            const b = document.getElementById('{btn_id}');
+            if (b) {{
+                b.innerText = '✅ Đã copy!';
+                b.style.backgroundColor = '#bbf7d0';
+                b.style.borderColor = '#4ade80';
+                setTimeout(() => {{
+                    b.innerText = '{label}';
+                    b.style.backgroundColor = '#f0fdf4';
+                    b.style.borderColor = '#86efac';
+                }}, 2000);
+            }}
+        }}
+        if (navigator.clipboard && window.isSecureContext) {{
+            navigator.clipboard.writeText(content).then(onCopied).catch(() => fallback_{btn_id}(content));
+        }} else {{
+            fallback_{btn_id}(content);
+        }}
+        function fallback_{btn_id}(str) {{
+            const ta = document.createElement('textarea');
+            ta.value = str;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try {{
+                document.execCommand('copy');
+                onCopied();
+            }} catch (e) {{
+                alert('Không thể copy tự động, vui lòng chọn và copy thủ công.');
+            }}
+            document.body.removeChild(ta);
+        }}
+    }}
+    </script>
+    """
+    components.html(html_code, height=36)
 
 
 def get_question_label(editing_id: int | None = None) -> str:
@@ -166,7 +237,11 @@ def render_doc_context(doc, charts_by_id: dict):
         unsafe_allow_html=True,
     )
     with st.container(border=True, height=580):
-        st.markdown(f"**body_text ({word_count(doc.body_text)} từ):**")
+        col_t, col_b = st.columns([1.8, 1.2])
+        with col_t:
+            st.markdown(f"**body_text ({word_count(doc.body_text)} từ):**")
+        with col_b:
+            render_copy_button(doc.body_text, "📋 Copy body_text", key="doc_ctx_copy")
         st.markdown(f"<div style='white-space: pre-wrap;'>{doc.body_text}</div>", unsafe_allow_html=True)
         if doc.charts:
             st.divider()
