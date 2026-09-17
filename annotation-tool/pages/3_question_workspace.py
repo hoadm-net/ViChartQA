@@ -18,7 +18,7 @@ from auth import current_user, require_login
 from constants import VLM_MODELS
 from db import get_session
 from models import Chart, Document, Evidence, Question
-from question_ui import render_copy_button, render_question_form
+from question_ui import render_charts_gallery, render_copy_button, render_question_form
 from validation import get_dataset_deficit_ranking, word_count
 from versioning import record_version
 from vlm_client import VLMError, generate_candidates
@@ -192,6 +192,8 @@ with col_h_meta:
     st.caption(f"📄 Toàn văn bài viết: {word_count(doc.body_text)} từ · {len(charts)} biểu đồ")
 with col_h_copy:
     render_copy_button(doc.body_text, "📋 Copy toàn văn", key="workspace_header_copy")
+
+render_charts_gallery(charts, charts_by_id)
 
 # ---- LLM suggestions (tham khảo, không lưu) ----
 st.divider()

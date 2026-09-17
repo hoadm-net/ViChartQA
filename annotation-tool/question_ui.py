@@ -86,6 +86,37 @@ def render_copy_button(text: str, label: str = "📋 Copy body_text", key: str =
     components.html(html_code, height=36)
 
 
+def render_charts_gallery(charts: list, charts_by_id: dict) -> None:
+    """Hiển thị thanh thumbnail gallery các biểu đồ ngay dưới header, giúp kéo thả nhanh sang AI."""
+    if not charts:
+        return
+    with st.container(border=True):
+        st.caption("🖼️ **Biểu đồ của bài viết** (Kéo thả ảnh hoặc Chuột phải ➔ *Sao chép hình ảnh* sang Claude/ChatGPT):")
+        n_c = len(charts)
+        if n_c == 1:
+            g_cols = st.columns([1, 2.5])
+            with g_cols[0]:
+                c = charts[0]
+                c_id_attr = getattr(c, "id", None) or (c.get("id") if isinstance(c, dict) else 0)
+                img_path = charts_by_id.get(c_id_attr, {}).get("image_path")
+                if img_path:
+                    st.image(img_path, width="stretch")
+                cid = getattr(c, "chart_id", None) or (c.get("chart_id") if isinstance(c, dict) else str(c))
+                ctype = getattr(c, "chart_type", None) or (c.get("chart_type") if isinstance(c, dict) else "")
+                st.caption(f"📌 **{cid}** ({ctype})")
+        else:
+            g_cols = st.columns(min(n_c, 4))
+            for idx, c in enumerate(charts):
+                c_id_attr = getattr(c, "id", None) or (c.get("id") if isinstance(c, dict) else idx)
+                img_path = charts_by_id.get(c_id_attr, {}).get("image_path")
+                with g_cols[idx % len(g_cols)]:
+                    if img_path:
+                        st.image(img_path, width="stretch")
+                    cid = getattr(c, "chart_id", None) or (c.get("chart_id") if isinstance(c, dict) else str(c))
+                    ctype = getattr(c, "chart_type", None) or (c.get("chart_type") if isinstance(c, dict) else "")
+                    st.caption(f"📌 **{cid}** ({ctype})")
+
+
 def get_question_label(editing_id: int | None = None) -> str:
     """Trả về nhãn hiển thị cho hộp nhập câu hỏi dựa trên ID đang sửa."""
     return f"Câu hỏi (ID: #{editing_id})" if type(editing_id) is int and editing_id > 0 else "Câu hỏi"

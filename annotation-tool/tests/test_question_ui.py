@@ -37,13 +37,14 @@ def test_validate_evidence_invalid_text_quote():
     assert any("quote không tìm thấy" in e for e in res.errors)
 
 
-from question_ui import get_question_label, render_copy_button, render_doc_context, render_evidence_builder, render_question_form, word_count
+from question_ui import get_question_label, render_charts_gallery, render_copy_button, render_doc_context, render_evidence_builder, render_question_form, word_count
 
 
 def test_question_ui_imports_and_symbols():
     assert callable(word_count)
     assert word_count("Xin chào Việt Nam") == 4
     assert callable(render_copy_button)
+    assert callable(render_charts_gallery)
     assert callable(render_doc_context)
     assert callable(render_evidence_builder)
     assert callable(render_question_form)
@@ -55,6 +56,17 @@ def test_render_copy_button_execution():
     render_copy_button("Nội dung test tiếng Việt có dấu: Tốc độ tăng trưởng 7,09%")
     render_copy_button("")
     render_copy_button('Chuỗi chứa dấu nháy kép " và nháy đơn \' cùng ký tự xuống dòng \n\t')
+
+
+def test_render_charts_gallery_execution():
+    # Kiểm tra render_charts_gallery với 0 chart, 1 chart, và nhiều charts
+    render_charts_gallery([], {})
+    chart1 = type("Chart", (), {"id": 1, "chart_id": "CHART_1", "chart_type": "bar"})()
+    chart2 = type("Chart", (), {"id": 2, "chart_id": "CHART_2", "chart_type": "line"})()
+    # 1 chart
+    render_charts_gallery([chart1], {1: {"image_path": None}})
+    # Nhiều charts
+    render_charts_gallery([chart1, chart2], {1: {"image_path": None}, 2: {"image_path": None}})
 
 
 def test_render_doc_context_execution():
@@ -82,6 +94,7 @@ if __name__ == "__main__":
     test_validate_evidence_invalid_text_quote()
     test_question_ui_imports_and_symbols()
     test_render_copy_button_execution()
+    test_render_charts_gallery_execution()
     test_render_doc_context_execution()
     test_q_label_logic()
     print("[SUCCESS] ALL UI & EVIDENCE VALIDATION UNIT TESTS PASSED!")
