@@ -195,21 +195,29 @@ flowchart TD
 Hệ thống mô hình đối chuẩn được lựa chọn dựa trên 3 tiêu chí định lượng chuẩn mực học thuật:
 1. **Năng lực suy luận biểu đồ (Chart Reasoning):** Đạt điểm cao trên **ChartQA** (ACL 2022) và **CharXiv** (2024).
 2. **Năng lực phân tích tài liệu đa phương thức (Document Parsing):** Đạt điểm tin cậy trên **DocVQA** (WACV 2021) và **OCRBench** (2023).
-3. **Tính đại diện theo phân tầng phần cứng & ngôn ngữ:** Phân định rõ trần năng lực thương mại (Tier 1), mã nguồn mở quy mô lớn (Tier 2), và mô hình nhỏ triển khai cục bộ trên GPU 24GB–32GB (Tier 3), kết hợp mô hình tiếng Việt chuyên biệt (`Vintern-3B`) và mô hình quốc tế (`Qwen2.5-VL-7B`).
+3. **Tính đại diện theo phân tầng phần cứng & kiến trúc (5 Phân Tầng):** Phân định rạch ròi giữa trần năng lực thương mại toàn cầu (Tier 1), mã nguồn mở quy mô lớn $\ge 70$B (Tier 2), kiến trúc thưa Vision-MoE (Tier 3), các mô hình cùng hạng cân hạt nhân $\le 4$B đối đầu trực tiếp với Vintern-3B (Tier 4), và các mô hình triển khai cục bộ 5B–8B trên 1 GPU 24GB (Tier 5).
+*(Tiêu chí loại trừ ngôn ngữ: Các mô hình chuyên biệt tiếng Anh như PaliGemma 2 bị loại khỏi benchmark chính thức do tokenizer và tập dữ liệu tiền huấn luyện không có khả năng đọc hiểu tiếng Việt tự nhiên phức tạp trong bài báo ViChartQA).*
 
 ### 4.2. Bảng Phân Tầng Mô Hình Tham Chiếu (Reference Baseline Hierarchy)
 
-| Phân Tầng | Tên Mô Hình | Nền Tảng / Tham Số | Điểm Chuẩn Đã Công Bố | Vai Trò Học Thuật Trong Bài Báo |
+| Phân Tầng (Tier) | Tên Mô Hình | Nền Tảng / Tham Số | Điểm Chuẩn Đã Công Bố (DocVQA / ChartQA) | Vai Trò Học Thuật & Giả Thuyết Khảo Nghiệm |
 | :--- | :--- | :--- | :--- | :--- |
-| **Tier 1: Proprietary Frontier**<br/>*(Trần tham chiếu toàn cầu)* | **Claude 3.7 / 3.5 Sonnet** | Proprietary, 200K ctx | ChartQA: 90.8%, DocVQA: 95.2% | Đo lường trần năng lực suy luận mở rộng kết hợp thị giác SOTA. |
-| | **GPT-4o** | Proprietary, 128K ctx | ChartQA: 85.7%, DocVQA: 92.8% | Chuẩn mực công nghiệp toàn cầu đối chuẩn zero-shot. |
-| | **Gemini 2.5 Pro / Flash** | Proprietary, 1M–2M ctx | ChartQA: 87.2%, DocVQA: 93.1% | Khảo sát năng lực tiếp nhận bài báo siêu dài và đa biểu đồ. |
-| **Tier 2: Large Open-Weight**<br/>*(Mã nguồn mở quy mô lớn)* | **Qwen2.5-VL-72B-Instruct** | Open-weight, 72B params | DocVQA: 96.4%, ChartQA: 89.5% | Đại diện mô hình open-weight $\ge 70$B tiệm cận frontier models. |
-| | **InternVL3-78B** | Open-weight, 78B params | ChartQA: 89.7%, DocVQA: 95.4% | Đối chứng năng lực xử lý tài liệu đa ảnh xen kẽ. |
-| **Tier 3: Local Deployable SLM**<br/>*(Trọng tâm nghiên cứu $\le 8$B)* | **Vintern-3B-beta** | Local GPU, 3.7B params | InternViT-300M + Qwen2.5-3B | **Backbone hạt nhân then chốt**: VLM tiếng Việt gốc của H-MAG. |
-| | **Vintern-3B-R-beta** | Local GPU, 3.7B params | Nâng cấp Reasoning SFT | Đo lường trần năng lực suy luận CoT nguyên bản của dòng Vintern. |
-| | **Qwen2.5-VL-7B-Instruct** | Local GPU, 7B params | ChartQA: 87.3%, DocVQA: 95.7% | **Backbone quốc tế đối chuẩn**: Dùng cho ma trận mở rộng quy mô. |
-| | **InternVL3.5-8B** | Local GPU, 8B params | ChartQA: 86.7%, DocVQA: 92.3% | Đối chứng kiến trúc visual encoder cùng họ InternViT ở quy mô 8B. |
+| **Tier 1: Proprietary Frontier**<br/>*(Trần tham chiếu toàn cầu)* | **Claude 3.7 / 3.5 Sonnet** | Proprietary API, 200K ctx, Hybrid CoT | DocVQA: **95.2%**<br>ChartQA: **90.8%** | Đo lường trần năng lực suy luận thị giác mở rộng và khả năng xử lý ngữ cảnh tài liệu siêu dài. |
+| | **GPT-4o (Omni)** | Proprietary API, 128K ctx | DocVQA: **92.8%**<br>ChartQA: **85.7%** | Chuẩn mực công nghiệp toàn cầu, đại diện cho năng lực zero-shot thương mại phổ biến nhất. |
+| | **Gemini 2.0 / 2.5 Pro** | Proprietary API, 1M–2M ctx | DocVQA: **93.1%**<br>ChartQA: **87.2%** | Khảo sát khả năng tiếp nhận toàn văn bài báo kinh tế tiếng Việt siêu dài cùng đa biểu đồ phân giải cao. |
+| **Tier 2: Large Open-Weight**<br/>*(Mã nguồn mở quy mô lớn $\ge 70$B)* | **Qwen2.5-VL-72B-Instruct** | Open-weight, 72B dense, Dynamic Res | DocVQA: **96.4%** (SOTA)<br>ChartQA: **89.5%** | Đại diện mã nguồn mở cờ đầu thế giới, tiệm cận và vượt frontier models ở tác vụ phân tích tài liệu. |
+| | **InternVL2.5-78B** | Open-weight, 78B (InternViT-6B + InternLM2.5) | DocVQA: **95.4%**<br>ChartQA: **89.7%** | Đối chứng năng lực kiến trúc InternViT ở quy mô tối đa với khả năng liên kết nhiều ảnh biểu đồ. |
+| | **Llama-3.2-90B-Vision** | Open-weight, 90B, Cross-Attention Adapter | DocVQA: **90.1%**<br>ChartQA: **83.4%** | Đại diện cho trường phái kiến trúc gắn visual adapter vào LLM nền tảng của phương Tây. |
+| **Tier 3: Sparse MoE Architecture**<br/>*(Kiến trúc thưa chuyên biệt 10B–30B)* | **DeepSeek-VL2** | Open-weight, Vision-MoE (4.5B active / 27.5B total) | DocVQA: **93.3%**<br>ChartQA: **86.0%** | **Đại diện kiến trúc Vision-MoE:** Kiểm chứng hiệu quả tính toán của MoE trên bài toán OCR, biểu đồ và văn bản đa ngôn ngữ. |
+| **Tier 4: Parameter-Matched SLMs**<br/>*(Cùng hạng cân hạt nhân $\le 4$B)* | **Vintern-3B-beta (Proposed Kernel)** | Local GPU, 3.7B (InternViT-300M + Qwen2.5-3B) | Base Vietnamese Multimodal VQA | **Hạt nhân nghiên cứu trung tâm**: VLM tiếng Việt gốc của H-MAG, đối tượng trực tiếp của quy trình SFT và RLVR. |
+| | **Vintern-3B-R-beta** | Local GPU, 3.7B (Reasoning SFT qua LLaVA-CoT) | Base Vietnamese CoT VQA | Đối chứng năng lực suy luận CoT nội sinh sẵn có của dòng Vintern khi chưa có H-MAG và GRPO. |
+| | **Qwen2.5-VL-3B-Instruct** | Local GPU, 3.4B dense, Dynamic Res | DocVQA & ChartQA SOTA ở phân khúc 3B | **Đối thủ cùng hạng cân trực tiếp**: Đánh giá hiệu năng của Vintern-3B bản địa tiếng Việt so với mô hình quốc tế cùng kích thước. |
+| | **DeepSeek-VL2-Tiny** | Local GPU, MoE (1.0B active / 3.0B total) | DocVQA & ChartQA optimized | Đối chứng mô hình MoE siêu nhẹ (chi phí suy luận chỉ tương đương 1B tham số hoạt động). |
+| | **Vintern-1B-v3_5** | Local GPU, 1.2B (InternVL2.5-1B base) | Lightweight Vietnamese VLM | Khảo sát cận dưới của mô hình VLM chạy được trên phần cứng edge/mobile (<4GB VRAM). |
+| **Tier 5: Mid-Sized Deployable SLMs**<br/>*(Phân khúc thực tế 5B–8B, GPU 24GB)* | **Qwen2.5-VL-7B-Instruct** | Local GPU, 7.6B dense, 128K context | DocVQA: **95.7%**<br>ChartQA: **87.8%** | **Backbone quốc tế đối chuẩn**: Dùng cho ma trận mở rộng quy mô (Scalability 2x2 Matrix ở Mục 4.5). |
+| | **InternVL2.5-8B** | Local GPU, 8.1B (InternViT-300M + InternLM2.5-7B) | DocVQA: **79.1%**<br>ChartQA: **84.8%** | Đối chứng kiến trúc visual encoder cùng họ InternViT ở quy mô 8B nhưng với LLM 7B. |
+| | **Phi-4-multimodal-instruct** | Microsoft, 5.6B, Mixture-of-LoRAs | DocVQA: **93.2%**<br>ChartQA: **81.4%** | Đại diện cho mô hình compact mới nhất của Microsoft với năng lực reasoning cao. |
+| | **MiniCPM-V 2.6** | OpenBMB, 8B (SigLIP-400M + Qwen2-7B) | DocVQA: **85.2%**<br>ChartQA: **82.6%** | Đại diện cho dòng mô hình nén token thị giác hiệu năng cao trên tài liệu dày đặc. |
 
 ### 4.3. Cơ Sở Khoa Học Lựa Chọn Mô Hình Hạt Nhân `Vintern-3B-beta`
 ViChartQA là tập dữ liệu đặc thù với toàn văn bài báo và chú thích biểu đồ bằng tiếng Việt tự nhiên phức tạp. Vintern-3B kết hợp visual encoder InternViT-300M với LLM backbone Qwen2.5-3B-Instruct đã được tiền huấn luyện sâu trên ngữ liệu tiếng Việt, cung cấp điểm khởi đầu lý tưởng về năng lực ngôn ngữ bản địa trên phần cứng phổ thông.
