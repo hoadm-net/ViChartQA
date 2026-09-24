@@ -80,7 +80,7 @@ Với mỗi câu hỏi truy vấn $q$, mục tiêu của hệ thống là xác �
 | $\mathcal{S}_{\mathrm{tc}}, \mathcal{S}_{\mathrm{cc}}$ | Lát cắt đa chặng: `text_and_chart` (44.05%) và `charts` (7.00%). | Tập câu hỏi đòi hỏi liên kết chéo tuần tự hoặc đối chiếu đa ảnh (Multi-Hop). |
 | $\mathcal{S}_{\mathrm{unans}}$ | Lát cắt câu hỏi không thể trả lời: `unanswerable` (5.39%). | Tập câu hỏi kiểm định ranh giới tri thức và khả năng từ chối trả lời. |
 | **H-MAG** | *Hierarchical Modality-Aware Grounding Framework*. | Khung kiến trúc 2 giai đoạn: Tầng 1 Định tuyến ngữ cảnh $\to$ Tầng 2 Lý luận hợp nhất. |
-| **Router Node** | Bộ phân loại đa nhiệm `mDeBERTa-v3-base` Dual-Head (~120M params). | Tầng 1: Phân loại intent ($c^*$) và định vị biểu đồ mục tiêu ($k^*$) trong $<15\,\text{ms}$. |
+| **Router Node** | Bộ phân loại đa nhiệm `mDeBERTa-v3-base` Dual-Head (~120M params). | Tầng 1: Phân loại intent ($c^*$) và định vị biểu đồ mục tiêu ($k^*$) trong $< 15\,\text{ms}$. |
 | **Unified Reasoner** | Mô hình VLM hạt nhân `Vintern-3B-beta` (hoặc `Qwen2.5-VL-7B`). | Tầng 2: Nhận context sạch, sinh chuỗi Single-Turn Structured CoT. |
 | **Gated DT-VR** | *Gated Derivation-Trajectory Verifiable Reward (v5.1)*. | Hàm thưởng RLVR kiểm chứng quỹ đạo đa phương thức có cổng logic nhân và ma trận từ chối 4 trạng thái. |
 | $\mathcal{A}_k$ | Thẻ Mỏ neo Đa phương thức: $\langle \mathrm{fig}_k, \mathcal{S}_{\mathrm{chart}}^{(k)}, P_{\mathrm{relevant}}^{(k)} \rangle$. | Cầu nối ngữ nghĩa tiền lập chỉ mục giữa biểu đồ và đoạn văn liên quan. |
@@ -143,7 +143,7 @@ flowchart TD
 
 ### 3.1. Điểm Nghẽn 1: Quá Tải Nhận Thức Ở Nhóm Single-Hop & Cơ Chế Fast Direct Paths
 - **Lát cắt dữ liệu chịu ảnh hưởng:** $48.94\%$ dữ liệu Single-Hop (`chart`: $31.74\%$, `text`: $17.21\%$).
-- **Điểm nghẽn thực nghiệm:** Đối với các mô hình VLM nhỏ ($\le 8$B), việc nạp đồng thời văn bản dài (~1.250 từ) và toàn bộ các biểu đồ khiến ma trận chú ý $\operatorname{Softmax}(QK^T / \sqrt{d_k})$ bị phân tán nghiêm trọng. Ở nhóm `chart`, văn bản xung quanh gây nhiễu khiến mô hình đoán mò (*Visual Shortcuts*); ở nhóm `text`, việc nạp token thị giác làm tăng độ trễ suy luận gấp 3 lần một cách vô ích.
+- **Điểm nghẽn thực nghiệm:** Đối với các mô hình VLM nhỏ ($\le 8$B), việc nạp đồng thời văn bản dài (~1.250 từ) và toàn bộ các biểu đồ khiến ma trận chú ý $\mathrm{Softmax}(QK^T / \sqrt{d_k})$ bị phân tán nghiêm trọng. Ở nhóm `chart`, văn bản xung quanh gây nhiễu khiến mô hình đoán mò (*Visual Shortcuts*); ở nhóm `text`, việc nạp token thị giác làm tăng độ trễ suy luận gấp 3 lần một cách vô ích.
 - **Cơ chế kỹ thuật giải quyết:** Tầng 1 (Modality Context Gater) phân loại intent và kích hoạt **Fast Direct Paths**:
   - Nhóm `chart`: Nạp duy nhất 1 ảnh biểu đồ mục tiêu, loại bỏ toàn bộ bài báo văn bản.
   - Nhóm `text`: Nạp duy nhất văn bản bài báo, tắt hoàn toàn Vision Tower ($0$ visual tokens).
@@ -289,22 +289,28 @@ flowchart TD
 ```
 
 ### 5.2. Thẻ Mỏ Neo Đa Phương Thức Tiền Lập Chỉ Mục (Precomputed Anchor Cards)
+
 Quy trình tiền lập chỉ mục ngoại tuyến (Offline Pre-indexing) thực hiện một lần duy nhất:
-1. **Question-Agnostic Visual Summarizer:** VLM đọc biểu đồ ngoại tuyến trích xuất đặc trưng thị giác khách quan:
-   $$\mathcal{S}_{\mathrm{chart}}^{(k)} = \operatorname{VLM}_{\mathrm{summary}}(\mathrm{fig}_k)$$
+
+1. **Question-Agnostic Visual Summarizer:** VLM đọc biểu đồ ngoại tuyến trích xuất đặc trưng thị giác khách quan: $\mathcal{S}_{\mathrm{chart}}^{(k)} = \mathrm{VLM}_{\mathrm{summary}}(\mathrm{fig}_k)$.
    *Prompt:* `"Hãy đọc tiêu đề, loại biểu đồ, nhãn các trục tọa độ, đối tượng chính và đơn vị tính của ảnh biểu đồ này trong 1-2 câu ngắn gọn."` Triệt tiêu hoàn toàn nguy cơ rò rỉ thông tin câu hỏi.
-2. **BM25 Narrative Linker:** Dùng $\mathcal{S}_{\mathrm{chart}}^{(k)}$ làm truy vấn tìm đoạn văn tác giả phân tích sâu nhất về biểu đồ:
-   $$P_{\mathrm{relevant}}^{(k)} = \arg\max_{P_j \in \mathcal{P}} \operatorname{BM25}\left(P_j, \, \mathcal{S}_{\mathrm{chart}}^{(k)}\right)$$
-3. **Đóng gói Thẻ Mỏ Neo $\mathcal{A}_k = \langle \mathrm{fig}_k, \mathcal{S}_{\mathrm{chart}}^{(k)}, P_{\mathrm{relevant}}^{(k)} \rangle$:** Lưu vào `data/process/anchor_cards.json`. Router nạp tệp này vào RAM trong $<1\,\text{ms}$, loại bỏ việc gọi visual encoder thời gian thực khi định tuyến.
+
+2. **BM25 Narrative Linker:** Dùng $\mathcal{S}_{\mathrm{chart}}^{(k)}$ làm truy vấn tìm đoạn văn tác giả phân tích sâu nhất về biểu đồ: $P_{\mathrm{relevant}}^{(k)} = \arg\max_{P_j \in \mathcal{P}} \mathrm{BM25}\left(P_j, \, \mathcal{S}_{\mathrm{chart}}^{(k)}\right)$.
+
+3. **Đóng gói Thẻ Mỏ Neo $\mathcal{A}_k = \langle \mathrm{fig}_k, \, \mathcal{S}_{\mathrm{chart}}^{(k)}, \, P_{\mathrm{relevant}}^{(k)} \rangle$:** Lưu vào `data/process/anchor_cards.json`. Router nạp tệp này vào RAM trong $< 1\,\text{ms}$, loại bỏ việc gọi visual encoder thời gian thực khi định tuyến.
 
 ### 5.3. Đặc Tả Chi Tiết Tầng 1: Router Node & Modality Context Gating
 
 #### 1. Mô hình triển khai:
-Sử dụng Text Classifier chuyên biệt siêu nhẹ **`mDeBERTa-v3-base`** (~120M tham số, chiếm $<500\,\text{MB}$ VRAM, độ trễ suy luận trên GPU chỉ $5 - 8\,\text{ms}$). Mô hình hỗ trợ SentencePiece BPE (nạp chuỗi thô, $0\,\text{ms}$ tiền xử lý CPU) và giới hạn ngữ cảnh $512$ tokens.
+Sử dụng Text Classifier chuyên biệt siêu nhẹ **`mDeBERTa-v3-base`** (~120M tham số, chiếm $< 500\,\text{MB}$ VRAM, độ trễ suy luận trên GPU chỉ $5 - 8\,\text{ms}$). Mô hình hỗ trợ SentencePiece BPE (nạp chuỗi thô, $0\,\text{ms}$ tiền xử lý CPU) và giới hạn ngữ cảnh $512$ tokens.
 
 #### 2. Chuỗi đầu vào ghép cặp thực thể (Paired Entity Input Packaging):
 Để loại bỏ triệt để điểm mù đối với hai nhóm `text` và `text_and_chart`, chuỗi đầu vào ghép nối có cấu trúc:
-$$\mathbf{x} = \text{[CLS]} \circ q \circ \text{[SEP]} \circ \mathcal{T}_{\mathrm{title}} \circ \text{[SEP]} \circ \sum_{k=1}^K \Big( \text{[CHART } k \text{]} \circ \mathcal{S}_{\mathrm{chart}}^{(k)} \circ \text{ [CTX] } \circ P_{\mathrm{relevant}}^{(k)} \Big) \circ \text{[SEP]}$$
+
+$$
+\mathbf{x} = \text{[CLS]} \circ q \circ \text{[SEP]} \circ \mathcal{T}_{\mathrm{title}} \circ \text{[SEP]} \circ \sum_{k=1}^K \Big( \text{[CHART } k \text{]} \circ \mathcal{S}_{\mathrm{chart}}^{(k)} \circ \text{ [CTX] } \circ P_{\mathrm{relevant}}^{(k)} \Big) \circ \text{[SEP]}
+$$
+
 Cấu hình trần an toàn `max_length = 450` tokens trong PyTorch DataLoader.
 
 #### 3. Nguồn nhãn huấn luyện có giám sát (100% Ground-truth từ `evidence`):
@@ -315,13 +321,17 @@ Tận dụng toàn bộ nhãn sẵn có trong 6.774 câu hỏi Train của `data
 - Chứa từ 2 biểu đồ trở lên $\implies$ Nhãn `charts`.
 
 #### 4. Cơ chế dự đoán song song (Multi-Task Head):
-- **Head 1 (Intent Classification Head):** Lớp tuyến tính $\operatorname{Linear}(768 \to 4)$ chiếu vector $\mathbf{h}_{\mathrm{[CLS]}}$ ra 4 logits, kích hoạt qua hàm Softmax.
-- **Head 2 (Target Chart Projection Head):** Lớp tuyến tính $\operatorname{Linear}(768 \to 256)$ kèm chuẩn hóa $L_2$ chiếu vector câu hỏi thành $\mathbf{e}_q$.
+- **Head 1 (Intent Classification Head):** Lớp tuyến tính $\mathrm{Linear}(768 \to 4)$ chiếu vector $\mathbf{h}_{\mathrm{[CLS]}}$ ra 4 logits, kích hoạt qua hàm Softmax.
+- **Head 2 (Target Chart Projection Head):** Lớp tuyến tính $\mathrm{Linear}(768 \to 256)$ kèm chuẩn hóa $L_2$ chiếu vector câu hỏi thành $\mathbf{e}_q$.
 
 #### 5. Cơ chế suy luận chọn biểu đồ mục tiêu (Inference Metric Matching):
 - Vector tóm tắt biểu đồ $\mathbf{e}_{\mathrm{chart}}^{(k)}$ được tính toán ngoại tuyến sẵn trong RAM.
-- Router tính tích vô hướng tức thì ($<0.01\,\text{ms}$):
-  $$k^* = \arg\max_{k \in \{1, \dots, K\}} \left( \mathbf{e}_q^T \mathbf{e}_{\mathrm{chart}}^{(k)} \right)$$
+- Router tính tích vô hướng tức thì ($< 0.01\,\text{ms}$):
+
+  $$
+  k^* = \arg\max_{k \in \{1, \dots, K\}} \left( \mathbf{e}_q^T \mathbf{e}_{\mathrm{chart}}^{(k)} \right)
+  $$
+
 - Fallback an toàn: Nếu tài liệu chỉ có 1 biểu đồ ($K=1$, chiếm 62.48%), mặc định chọn $k^* = 1$ ($0\,\text{ms}$). Nếu $\max P(\mathrm{intent}) < \tau_{\mathrm{route}} = 0.85$, kích hoạt Soft-Fallback nạp cả văn bản và ảnh biểu đồ mục tiêu để bảo vệ ranh giới an toàn.
 
 ### 5.4. Fast Direct Paths: Luồng Tối Ưu Đơn Chặng Cho Nhóm `chart` Và `text`
@@ -354,17 +364,32 @@ Thay vì chia nhỏ thành nhiều tác tử gọi vòng vo làm gãy thuật to
 - **Tập dữ liệu:** 6.774 mẫu Train trích xuất từ `evidence` của `vichartqa.json`.
 - **Cấu hình:** 3 epochs, learning rate $3 \times 10^{-5}$, AdamW, batch size 32, hoàn thành trong ~8 phút trên 1 GPU RTX 4090/5090.
 - **Hàm mất mát liên hợp (Joint Multi-Task Loss):**
-  $$\mathcal{L}_{\mathrm{router}} = \mathcal{L}_{\mathrm{intent}} + \lambda_{\mathrm{chart}} \cdot \mathcal{L}_{\mathrm{chart}}$$
+
+  $$
+  \mathcal{L}_{\mathrm{router}} = \mathcal{L}_{\mathrm{intent}} + \lambda_{\mathrm{chart}} \cdot \mathcal{L}_{\mathrm{chart}}
+  $$
+
   Trong đó:
   1. $\mathcal{L}_{\mathrm{intent}}$ là Cross-Entropy 4 lớp:
-     $$\mathcal{L}_{\mathrm{intent}} = -\sum_{c=1}^4 \mathbb{I}(y_{\mathrm{intent}} = c) \log P(c \mid \mathbf{x})$$
+
+     $$
+     \mathcal{L}_{\mathrm{intent}} = -\sum_{c=1}^4 \mathbb{I}(y_{\mathrm{intent}} = c) \log P(c \mid \mathbf{x})
+     $$
+
   2. $\mathcal{L}_{\mathrm{chart}}$ là Supervised Contrastive Loss (InfoNCE) với $\tau = 0.07$:
-     $$\mathcal{L}_{\mathrm{chart}} = -\mathbb{I}(\text{has\_chart}) \cdot \log \frac{\exp\left( \mathbf{e}_q^T \mathbf{e}_{k^*} / \tau \right)}{\sum_{j=1}^K \exp\left( \mathbf{e}_q^T \mathbf{e}_j / \tau \right)}$$
+
+     $$
+     \mathcal{L}_{\mathrm{chart}} = -\mathbb{I}(\text{has\_chart}) \cdot \log \frac{\exp\left( \mathbf{e}_q^T \mathbf{e}_{k^*} / \tau \right)}{\sum_{j=1}^K \exp\left( \mathbf{e}_q^T \mathbf{e}_j / \tau \right)}
+     $$
+
      với trọng số cân bằng $\lambda_{\mathrm{chart}} = 0.5$.
 
 ### 6.1. Pha 1: Adaptive SFT Qua Quy Trình Tuần Tự Hóa Tất Định (Deterministic Serialization)
 Thay vì phải sinh thêm dữ liệu CoT ngoại vi tốn kém từ các mô hình thương mại (như GPT-4o hay Gemini API), nghiên cứu áp dụng **Quy trình Tuần tự hóa SFT Tất định** biên dịch trực tiếp $100\%$ nhãn người gán sẵn có từ `vichartqa.json` thành chuỗi mục tiêu XML có cấu trúc:
-$$\text{Target}_{\mathrm{sft}} = \langle\text{think}\rangle \mathcal{D}_{\mathrm{desc}} \langle/\text{think}\rangle \langle\text{quote}\rangle \mathcal{Q}_{\mathrm{text}} \langle/\text{quote}\rangle \langle\text{chart\_id}\rangle \mathcal{C}_{\mathrm{id}} \langle/\text{chart\_id}\rangle \langle\text{calc}\rangle \mathcal{E}_{\mathrm{deriv}} \langle/\text{calc}\rangle \langle\text{answer}\rangle \mathcal{Y}_{\mathrm{ans}} \langle/\text{answer}\rangle$$
+
+$$
+\text{Target}_{\mathrm{sft}} = \langle\text{think}\rangle \mathcal{D}_{\mathrm{desc}} \langle/\text{think}\rangle \langle\text{quote}\rangle \mathcal{Q}_{\mathrm{text}} \langle/\text{quote}\rangle \langle\text{chart\_id}\rangle \mathcal{C}_{\mathrm{id}} \langle/\text{chart\_id}\rangle \langle\text{calc}\rangle \mathcal{E}_{\mathrm{deriv}} \langle/\text{calc}\rangle \langle\text{answer}\rangle \mathcal{Y}_{\mathrm{ans}} \langle/\text{answer}\rangle
+$$
 
 #### Minh chứng thực tế từ tập dữ liệu Train:
 - **Mẫu đa phương thức (`text_and_chart` có phép tính):**
@@ -383,42 +408,77 @@ Huấn luyện 3 epochs, $\eta = 2 \times 10^{-5}$, cosine schedule trên 6.774 
 
 ### 6.2. Pha 2: Single-Turn GRPO Với Phân Tầng Tốc Độ Học
 Vì Unified Reasoner chỉ sinh 1 lượt duy nhất trên ngữ cảnh đã được gọt sạch, thuật toán **Single-Turn Group Relative Policy Optimization (GRPO)** được bảo toàn $100\%$ tính nguyên vẹn toán học:
-$$\mathcal{J}_{\mathrm{GRPO}}(\theta) = \mathbb{E}_{\{o_i\}_{i=1}^G \sim \pi_{\theta_{\mathrm{old}}}} \left[ \frac{1}{G} \sum_{i=1}^G \min \left( \frac{\pi_\theta(o_i|q)}{\pi_{\theta_{\mathrm{old}}}(o_i|q)} \hat{A}_i, \, \operatorname{clip}\left(\frac{\pi_\theta(o_i|q)}{\pi_{\theta_{\mathrm{old}}}(o_i|q)}, 1-\epsilon, 1+\epsilon\right) \hat{A}_i \right) - \beta_{\mathrm{KL}} D_{\mathrm{KL}}(\pi_\theta \parallel \pi_{\mathrm{ref}}) \right]$$
-với $G=5$ rollouts, $\hat{A}_i = \frac{R_i - \operatorname{mean}(R)}{\operatorname{std}(R) + 10^{-6}}$, $\eta_{\mathrm{vision}}=0, \eta_{\mathrm{proj}}=10^{-7}, \eta_{\mathrm{llm}}=10^{-6}, \epsilon=0.2, \beta_{\mathrm{KL}}=0.04$.
+
+$$
+\mathcal{J}_{\mathrm{GRPO}}(\theta) = \mathbb{E}_{\{o_i\}_{i=1}^G \sim \pi_{\theta_{\mathrm{old}}}} \left[ \frac{1}{G} \sum_{i=1}^G \min \left( \frac{\pi_\theta(o_i|q)}{\pi_{\theta_{\mathrm{old}}}(o_i|q)} \hat{A}_i, \, \mathrm{clip}\left(\frac{\pi_\theta(o_i|q)}{\pi_{\theta_{\mathrm{old}}}(o_i|q)}, 1-\epsilon, 1+\epsilon\right) \hat{A}_i \right) - \beta_{\mathrm{KL}} D_{\mathrm{KL}}(\pi_\theta \parallel \pi_{\mathrm{ref}}) \right]
+$$
+
+với $G=5$ rollouts, $\hat{A}_i = \frac{R_i - \mathrm{mean}(R)}{\mathrm{std}(R) + 10^{-6}}$, $\eta_{\mathrm{vision}}=0, \eta_{\mathrm{proj}}=10^{-7}, \eta_{\mathrm{llm}}=10^{-6}, \epsilon=0.2, \beta_{\mathrm{KL}}=0.04$.
 
 ### 6.3. Công Thức Toán Học Hàm Thưởng Phân Luồng Gated DT-VR v5.1
 Hàm thưởng tổng hợp:
-$$R_i = R_{\mathrm{format}} \times \left( R_{\mathrm{task}} + \lambda_{\mathrm{ref}} R_{\mathrm{refusal}} \right) + R_{\mathrm{length}}$$
+
+$$
+R_i = R_{\mathrm{format}} \times \left( R_{\mathrm{task}} + \lambda_{\mathrm{ref}} R_{\mathrm{refusal}} \right) + R_{\mathrm{length}}
+$$
+
 Nếu vi phạm cú pháp đóng mở thẻ XML $\implies R_{\mathrm{format}} = 0 \implies R_i = 0.0$. Hệ số cân bằng $\lambda_{\mathrm{ref}} = 1.0$.
 
 #### 1. Cấu trúc hàm thưởng tác vụ có cổng nhân (Multiplicative Gating):
-$$R_{\mathrm{task}} = R_{\mathrm{outcome}}(y_{\mathrm{ans}}, \mathcal{Y}^*) \times \left[ 1.0 + \alpha_{\mathrm{process}} \times R_{\mathrm{process}} \right]$$
+
+$$
+R_{\mathrm{task}} = R_{\mathrm{outcome}}(y_{\mathrm{ans}}, \mathcal{Y}^*) \times \left[ 1.0 + \alpha_{\mathrm{process}} \times R_{\mathrm{process}} \right]
+$$
+
 Trong đó $R_{\mathrm{outcome}}$ đo lường độ chính xác kết quả cuối:
 - Với câu hỏi số học: Dung sai mềm $5\%$:
-  $$R_{\mathrm{outcome}} = \begin{cases} \max\left(0, 1 - 20 \times \frac{|y_{\mathrm{ans}} - y^*|}{y^*}\right) & \text{if } \frac{|y_{\mathrm{ans}} - y^*|}{y^*} \le 0.05 \\ 0.0 & \text{otherwise} \end{cases}$$
+
+  $$
+  R_{\mathrm{outcome}} = \begin{cases} \max\left(0, 1 - 20 \times \frac{|y_{\mathrm{ans}} - y^*|}{y^*}\right) & \text{if } \frac{|y_{\mathrm{ans}} - y^*|}{y^*} \le 0.05 \\ 0.0 & \text{otherwise} \end{cases}
+  $$
+
 - Với câu hỏi phi số học: So khớp ký tự chuẩn hóa tiếng Việt: $R_{\mathrm{outcome}} \in \{0, 1\}$.
 *(Lưu ý: Đối với tập câu hỏi không thể trả lời $y^* = \text{'unanswerable'}$, $R_{\mathrm{task}}$ được gán bằng $0.0$, toàn bộ điểm đánh giá được phân định trực tiếp qua nhánh chuyên trách $R_{\mathrm{refusal}}$).*
 
 #### 2. Hàm thưởng quy trình đa phương thức tổng hòa:
-$$R_{\mathrm{process}} = \mu_{\mathrm{math}} \cdot R_{\mathrm{process}}^{\mathrm{math}} + \mu_{\mathrm{ground}} \cdot R_{\mathrm{process}}^{\mathrm{grounding}}$$
+
+$$
+R_{\mathrm{process}} = \mu_{\mathrm{math}} \cdot R_{\mathrm{process}}^{\mathrm{math}} + \mu_{\mathrm{ground}} \cdot R_{\mathrm{process}}^{\mathrm{grounding}}
+$$
+
 Trọng số điều tiết $(\mu_{\mathrm{math}}, \mu_{\mathrm{ground}})$ theo nguyên lý Anti-Pothole Gap:
 - **Nhóm Single-hop Factoid (`text` hoặc `chart` không derivation):** $\mu_{\mathrm{math}} = 0.0, \; \mu_{\mathrm{ground}} = 1.0$.
 - **Nhóm Single-hop / Multi-chart Math (`chart` hoặc `charts` có derivation):** $\mu_{\mathrm{math}} = 1.0, \; \mu_{\mathrm{ground}} = 0.0$.
 - **Nhóm Multi-hop Cross-modal Math (`text_and_chart` có derivation, 1.886 câu):**
-  $$\mu_{\mathrm{math}} = 0.5, \quad \mu_{\mathrm{ground}} = 0.5$$
+
+  $$
+  \mu_{\mathrm{math}} = 0.5, \quad \mu_{\mathrm{ground}} = 0.5
+  $$
+
   Mô hình bắt buộc phải đạt cả 2 chiều trực giao: trích đúng mỏ neo văn bản vào `<quote>` VÀ trích đúng số liệu biểu đồ vào `<calc>` mới nhận trọn vẹn điểm thưởng.
 
 #### 3. Hàm thưởng quy trình số học AST Execution Invariance:
-$$R_{\mathrm{process}}^{\mathrm{math}} = \mathbb{I}\left(\operatorname{eval}(\text{expr}) \approx y_{\mathrm{ans}}\right) \times \left[ 0.6 \times \operatorname{IoU}\left(\mathcal{O}_{\mathrm{pred}} \setminus \mathcal{C}_{\mathrm{struct}}, \; \mathcal{O}_{\mathrm{gt}} \setminus \mathcal{C}_{\mathrm{struct}}\right) + 0.4 \right]$$
+
+$$
+R_{\mathrm{process}}^{\mathrm{math}} = \mathbb{I}\left(\text{eval}(\text{expr}) \approx y_{\mathrm{ans}}\right) \times \left[ 0.6 \times \mathrm{IoU}\left(\mathcal{O}_{\mathrm{pred}} \setminus \mathcal{C}_{\mathrm{struct}}, \; \mathcal{O}_{\mathrm{gt}} \setminus \mathcal{C}_{\mathrm{struct}}\right) + 0.4 \right]
+$$
+
 Trong đó $\mathcal{C}_{\mathrm{struct}} = \{0, 1, 10, 100, 1000, 2, 3, 4, 12\}$. Mô hình được bảo vệ điểm thưởng cho các phép biến đổi đại số tương đương nhưng bị triệt tiêu điểm thưởng nếu nhặt số ngẫu nhiên không thuộc $\mathcal{O}_{\mathrm{gt}}$.
 
 #### 4. Hàm thưởng trích dẫn chứng cứ mỏ neo:
-$$R_{\mathrm{process}}^{\mathrm{grounding}} = \begin{cases} 0.5 \times R_{\mathrm{quote}} + 0.5 \times R_{\mathrm{chart}} & \text{if } \text{text\_and\_chart} \\ R_{\mathrm{quote}} & \text{if } \text{text} \\ R_{\mathrm{chart}} & \text{if } \text{chart} \\ R_{\mathrm{charts}} & \text{if } \text{charts} \end{cases}$$
-với $R_{\mathrm{quote}} = \mathbb{I}\left(q_{\mathrm{pred}} \subseteq \mathcal{T}_{\mathrm{body}}\right) \times \operatorname{Token-F1}(q_{\mathrm{pred}}, q_{\mathrm{gt}})$, $R_{\mathrm{chart}} = \mathbb{I}(c_{\mathrm{pred}} = c_{\mathrm{gt}})$, $R_{\mathrm{charts}} = \mathbb{I}(\mathcal{C}_{\mathrm{pred}} = \mathcal{C}_{\mathrm{gt}})$.
+
+$$
+R_{\mathrm{process}}^{\mathrm{grounding}} = \begin{cases} 0.5 \times R_{\mathrm{quote}} + 0.5 \times R_{\mathrm{chart}} & \text{if } \text{text\_and\_chart} \\ R_{\mathrm{quote}} & \text{if } \text{text} \\ R_{\mathrm{chart}} & \text{if } \text{chart} \\ R_{\mathrm{charts}} & \text{if } \text{charts} \end{cases}
+$$
+
+với $R_{\mathrm{quote}} = \mathbb{I}\left(q_{\mathrm{pred}} \subseteq \mathcal{T}_{\mathrm{body}}\right) \times \text{Token-F1}(q_{\mathrm{pred}}, q_{\mathrm{gt}})$, $R_{\mathrm{chart}} = \mathbb{I}(c_{\mathrm{pred}} = c_{\mathrm{gt}})$, $R_{\mathrm{charts}} = \mathbb{I}(\mathcal{C}_{\mathrm{pred}} = \mathcal{C}_{\mathrm{gt}})$.
 
 #### 5. Hàm thưởng từ chối câu hỏi không thể trả lời (4-State Complete Decision Matrix):
 Để khắc phục triệt để **Bẫy né phạt Bayes (Penalty Evasion Policy Trap)** của các hàm phạt nhị phân bất đối xứng cũ, hàm thưởng từ chối được mô hình hóa theo lý thuyết quyết định Bayes và ma trận lợi ích đầy đủ 4 trạng thái (4-State Payoff Matrix):
-$$R_{\mathrm{refusal}} = \begin{cases} +1.0 & \text{if } y^* = \text{'unanswerable'} \land y_{\mathrm{ans}} = \text{'unanswerable'} \quad \text{(Từ chối đúng: True Positive Abstention)} \\ -1.0 & \text{if } y^* = \text{'unanswerable'} \land y_{\mathrm{ans}} \ne \text{'unanswerable'} \quad \text{(Ảo giác bịa đặt khi vô nghiệm: False Negative Abstention - Phạt Nặng)} \\ -0.5 & \text{if } y^* \ne \text{'unanswerable'} \land y_{\mathrm{ans}} = \text{'unanswerable'} \quad \text{(Từ chối nhầm câu hỏi hợp lệ: False Positive Abstention - Phạt Nhẹ)} \\ 0.0 & \text{if } y^* \ne \text{'unanswerable'} \land y_{\mathrm{ans}} \ne \text{'unanswerable'} \quad \text{(Trả lời bình thường: Điểm do } R_{\mathrm{outcome}} \text{ \& } R_{\mathrm{process}} \text{ định đoạt)} \end{cases}$$
+
+$$
+R_{\mathrm{refusal}} = \begin{cases} +1.0 & \text{if } y^* = \text{'unanswerable'} \land y_{\mathrm{ans}} = \text{'unanswerable'} \quad \text{(Từ chối đúng: True Positive Abstention)} \\ -1.0 & \text{if } y^* = \text{'unanswerable'} \land y_{\mathrm{ans}} \ne \text{'unanswerable'} \quad \text{(Ảo giác bịa đặt khi vô nghiệm: False Negative Abstention - Phạt Nặng)} \\ -0.5 & \text{if } y^* \ne \text{'unanswerable'} \land y_{\mathrm{ans}} = \text{'unanswerable'} \quad \text{(Từ chối nhầm câu hỏi hợp lệ: False Positive Abstention - Phạt Nhẹ)} \\ 0.0 & \text{if } y^* \ne \text{'unanswerable'} \land y_{\mathrm{ans}} \ne \text{'unanswerable'} \quad \text{(Trả lời bình thường: Điểm do } R_{\mathrm{outcome}} \text{ \& } R_{\mathrm{process}} \text{ định đoạt)} \end{cases}
+$$
 
 **Phân tích Cân bằng Khuyến khích RL (RL Incentive Alignment & Nash Equilibrium):**
 1. **Triệt tiêu Động cơ Đoán Mò trên Tập Vô Nghiệm ($\mathcal{S}_{\mathrm{unans}}$):**
@@ -426,21 +486,40 @@ $$R_{\mathrm{refusal}} = \begin{cases} +1.0 & \text{if } y^* = \text{'unanswerab
    - Nếu mô hình chọn *Từ chối*: nhận phần thưởng $R_{\mathrm{refusal}} = +1.0$.
    - Nếu mô hình chọn *Đoán mò / Bịa đặt*: nhận hình phạt $R_{\mathrm{refusal}} = -1.0$.
    - **Khoảng khuyến khích dương (Positive Incentive Margin):**
-     $$\Delta R_{\mathrm{unans}} = R(\text{Abstain}) - R(\text{Guess}) = (+1.0) - (-1.0) = +2.0 > 0$$
+
+     $$
+     \Delta R_{\mathrm{unans}} = R(\text{Abstain}) - R(\text{Guess}) = (+1.0) - (-1.0) = +2.0 > 0
+     $$
+
      Hình phạt $-1.0$ biến hành vi bịa đặt thành một quyết định có chi phí rủi ro cực cao, loại bỏ hoàn toàn chiến lược "xổ số miễn phí" (đoán bừa không mất gì) vốn tồn tại trong các hàm thưởng trước.
 2. **Hạ thấp Rào cản E ngại Từ chối (Lower Abstention Penalty Barrier):**
    Khi câu hỏi có lời giải ($y^* \ne \text{'unanswerable'}$), nếu mô hình không đủ tự tin và quyết định từ chối nhầm, mô hình chỉ chịu mức phạt nhẹ $-0.5$ (thay vì mức phạt cực đoan $-\beta = -3.0$ trong v5.0 vốn khiến policy hoảng sợ và không bao giờ dám từ chối).
 3. **Kỳ vọng Quyết định Tối ưu Bayes (Bayesian Expected Payoff):**
    Gọi $p = P(y^* = \text{'unanswerable'} \mid q)$ là xác suất tiên nghiệm mô hình ước lượng câu hỏi là vô nghiệm. Kỳ vọng phần thưởng của hai hành động:
-   $$\mathbb{E}[R \mid \text{Abstain}] = p \cdot (+1.0) + (1-p) \cdot (-0.5) = 1.5p - 0.5$$
-   $$\mathbb{E}[R \mid \text{Guess}] = p \cdot (-1.0) + (1-p) \cdot \mathbb{E}[R_{\mathrm{task}} \mid \text{Answerable}]$$
+
+   $$
+   \mathbb{E}[R \mid \text{Abstain}] = p \cdot (+1.0) + (1-p) \cdot (-0.5) = 1.5p - 0.5
+   $$
+
+   $$
+   \mathbb{E}[R \mid \text{Guess}] = p \cdot (-1.0) + (1-p) \cdot \mathbb{E}[R_{\mathrm{task}} \mid \text{Answerable}]
+   $$
+
    Chính sách tối ưu sẽ chọn *Từ chối* khi và chỉ khi:
-   $$\mathbb{E}[R \mid \text{Abstain}] > \mathbb{E}[R \mid \text{Guess}] \iff p > \frac{\mathbb{E}[R_{\mathrm{task}}] + 0.5}{\mathbb{E}[R_{\mathrm{task}}] + 2.5}$$
+
+   $$
+   \mathbb{E}[R \mid \text{Abstain}] > \mathbb{E}[R \mid \text{Guess}] \iff p > \frac{\mathbb{E}[R_{\mathrm{task}}] + 0.5}{\mathbb{E}[R_{\mathrm{task}}] + 2.5}
+   $$
+
    Cơ chế này thiết lập một điểm cân bằng Bayes nội sinh chặt chẽ, dẫn dắt mô hình hình thành năng lực tự nhận thức ranh giới tri thức (Selective Abstention) mà không làm suy giảm độ chính xác trên các câu hỏi giải được.
 
 #### 6. Phạt độ dài phản hồi trơn loại $C^0$ (Response Length Penalty):
 Hàm phạt độ dài **CHỈ TÍNH TRÊN CHIỀU DÀI CHUỖI SINH $L = |o_i|$**, không cộng dồn prompt:
-$$R_{\mathrm{length}} = \begin{cases} 0.0 & \text{if } L \le L_{\mathrm{soft}} \\ -\kappa \cdot \gamma \cdot \frac{L - L_{\mathrm{soft}}}{L_{\mathrm{hard}} - L_{\mathrm{soft}}} & \text{if } L_{\mathrm{soft}} < L \le L_{\mathrm{hard}} \\ -\kappa \cdot \left[ \gamma + \alpha_{\mathrm{len}} \cdot \left(\frac{L - L_{\mathrm{hard}}}{L_{\mathrm{hard}}}\right)^2 \right] & \text{if } L > L_{\mathrm{hard}} \end{cases}$$
+
+$$
+R_{\mathrm{length}} = \begin{cases} 0.0 & \text{if } L \le L_{\mathrm{soft}} \\ -\kappa \cdot \gamma \cdot \frac{L - L_{\mathrm{soft}}}{L_{\mathrm{hard}} - L_{\mathrm{soft}}} & \text{if } L_{\mathrm{soft}} < L \le L_{\mathrm{hard}} \\ -\kappa \cdot \left[ \gamma + \alpha_{\mathrm{len}} \cdot \left(\frac{L - L_{\mathrm{hard}}}{L_{\mathrm{hard}}}\right)^2 \right] & \text{if } L > L_{\mathrm{hard}} \end{cases}
+$$
+
 với $L_{\mathrm{soft}} = 512$ tokens, $L_{\mathrm{hard}} = 1.024$ tokens, $\gamma = 0.1, \alpha_{\mathrm{len}} = 0.5$.
 
 ### 6.4. Phân Định Vai Trò AST Sanitizer Giữa Huấn Luyện Và Suy Luận
