@@ -1,0 +1,68 @@
+{
+  "dataset_cardinality": {
+    "cloud": {
+      "documents": 1261,
+      "questions": 10856
+    },
+    "process": {
+      "documents": 1242,
+      "questions": 8851
+    },
+    "removed_documents": 19,
+    "removed_questions": 2005,
+    "common_questions": 8851
+  },
+  "modifications_on_common_qa": {
+    "question": {
+      "count": 2344,
+      "percentage": 26.48
+    },
+    "answer": {
+      "count": 2681,
+      "percentage": 30.29
+    },
+    "answer_type": {
+      "count": 1509,
+      "percentage": 17.05
+    },
+    "question_type": {
+      "count": 1861,
+      "percentage": 21.03
+    },
+    "hop_type": {
+      "count": 1529,
+      "percentage": 17.27
+    },
+    "derivation": {
+      "count": 1468,
+      "percentage": 16.59
+    },
+    "choices": {
+      "count": 367,
+      "percentage": 4.15
+    },
+    "evidence": {
+      "count": 4484,
+      "percentage": 50.66
+    }
+  },
+  "quality_gates_metrics": {
+    "shortcut_neutralization": {
+      "before_cloud": 66,
+      "after_process": 0,
+      "neutralized_count": 66
+    },
+    "text_quote_alignment": {
+      "cloud": {
+        "total_text_quotes": 5522,
+        "exact_matches": 5277,
+        "match_rate": 95.56
+      },
+      "process": {
+        "total_text_quotes": 6272,
+        "exact_matches": 6272,
+        "match_rate": 100.0
+      }
+    }
+  }
+}
