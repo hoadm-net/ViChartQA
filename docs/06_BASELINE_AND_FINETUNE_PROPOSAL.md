@@ -252,12 +252,23 @@ ViChartQA là tập dữ liệu đặc thù với toàn văn bài báo và chú 
 
 *Cố định 100% backbone `Vintern-3B-beta` trên cả 4 ô để cô lập hoàn toàn hiệu ứng của Kiến trúc (Factor A) và Phương pháp Tinh chỉnh (Factor B) trên 1 GPU 24GB VRAM:*
 
+#### Sơ Đồ Trình Tự Thực Thi Thực Nghiệm Tiên Quyết (Prerequisite Execution Roadmap)
+
+Để triển khai và đánh giá khách quan các ô trong Ma trận Thực nghiệm 2x2, quy trình bắt buộc phải tuân thủ nghiêm ngặt lộ trình 3 pha kế tiếp nhau:
+
+```mermaid
+flowchart LR
+    P0["Pha 0: Chuẩn Bị & Router<br/>• Tạo Thẻ Mỏ Neo Ak (Mục 5.2)<br/>• Train mDeBERTa-v3 (Mục 5.3)"] --> P1["Pha 1: Deterministic SFT<br/>• Compile SFT vichartqa.json<br/>• SFT Warmup Vintern-3B (Mục 6.1)"]
+    P1 --> P2["Pha 2: Gated DT-VR GRPO<br/>• Rollout G=5 với TRL<br/>• Train Hierarchical LR (Mục 6.2-6.3)"]
+    P2 --> Eval["Pha 3: Benchmark 2x2 Matrix<br/>• Đánh giá Ô (1), (2), (3), (4)<br/>• Kiểm thử trên Test Split (1.181 QA)"]
+```
+
 #### BẢNG 1: MA TRẬN KHẢO NGHIỆM CỐT LÕI (Mô hình Hạt nhân: `Vintern-3B-beta`)
 
 | Trục Đánh Giá                                    | Cột 1: Kiến Trúc Đơn Khối (Monolithic Baseline)                                                                                                                                                                                                                                                             | Cột 2: Kiến Trúc H-MAG (Two-Stage Modality-Gated Framework)                                                                                                                                                                                                                                                                                                    |
 | :----------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Hàng 1: Không Tinh Chỉnh (Zero-Shot Baseline)** | **Ô (1) Monolithic Zero-shot:**• **Backbone:** `Vintern-3B-beta` nguyên bản.• **Phương thức:** Nạp toàn bộ text bài báo + ảnh biểu đồ vào 1 prompt CoT duy nhất.• **Mục đích:** Đo trần năng lực ban đầu của mô hình nhỏ khi bị quá tải ngữ cảnh.                           | **Ô (2) Modality-Gated Zero-shot:**• **Tiền xử lý:** Router Node `mDeBERTa-v3` phân loại và gọt ngữ cảnh.• **Backbone:** `Vintern-3B-beta` nguyên bản nhận ngữ cảnh sạch.• **Mục đích:** Đo giá trị gia tăng thuần túy của cơ chế tiền lọc ngữ cảnh khi chưa cập nhật trọng số VLM.                                       |
-| **Hàng 2: Có Tinh Chỉnh (Fine-Tuned System)**     | **Ô (3) Monolithic Fine-tuned:**• **Backbone:** `Vintern-3B-beta` + 1 LoRA adapter ($r=32, \alpha=64$).• **Huấn luyện:** Direct SFT $\to$ Standard Outcome GRPO ($R = R_{\mathrm{outcome}}$) trên full context.• **Mục đích:** Đo giới hạn của phương pháp fine-tune đơn khối truyền thống. | **Ô (4) Full H-MAG (Proposed System v5.2):**• **Tầng 1:** Router Node `mDeBERTa-v3` được huấn luyện qua Joint Multi-task Loss.• **Tầng 2:** `Vintern-3B-beta` huấn luyện qua Deterministic SFT $\to$ Hierarchical LR GRPO với hàm thưởng **Gated DT-VR v5.2**.• **Mục đích:** Đo hiệu năng tối đa của toàn bộ giải pháp đề xuất. |
+| **Hàng 1: Không Tinh Chỉnh (Zero-Shot Baseline)** | **Ô (1) Monolithic Zero-shot:**<br>• **Backbone:** `Vintern-3B-beta` nguyên bản.<br>• **Phương thức:** Nạp toàn bộ text bài báo + ảnh biểu đồ vào 1 prompt CoT duy nhất.<br>• **Mục đích:** Đo trần năng lực ban đầu của mô hình nhỏ khi bị quá tải ngữ cảnh.                           | **Ô (2) Modality-Gated Zero-shot:**<br>• **Tiền xử lý:** [Router Node `mDeBERTa-v3`](#53-đặc-tả-chi-tiết-tầng-1-router-node--modality-context-gating) dùng [Thẻ Mỏ Neo $\mathcal{A}_k$](#52-thẻ-mỏ-neo-đa-phương-thức-tiền-lập-chỉ-mục-precomputed-anchor-cards) phân loại và gọt ngữ cảnh.<br>• **Backbone:** `Vintern-3B-beta` nguyên bản nhận ngữ cảnh sạch.<br>• **Mục đích:** Đo giá trị gia tăng thuần túy của cơ chế tiền lọc ngữ cảnh khi chưa cập nhật trọng số VLM.                                       |
+| **Hàng 2: Có Tinh Chỉnh (Fine-Tuned System)**     | **Ô (3) Monolithic Fine-tuned:**<br>• **Backbone:** `Vintern-3B-beta` + 1 LoRA adapter ($r=32, \alpha=64$).<br>• **Huấn luyện:** [Direct SFT](#61-pha-1-adaptive-sft-qua-quy-trình-tuần-tự-hóa-tất-định-deterministic-serialization) $\to$ Standard Outcome GRPO ($R = R_{\mathrm{outcome}}$) trên full context.<br>• **Mục đích:** Đo giới hạn của phương pháp fine-tune đơn khối truyền thống. | **Ô (4) Full H-MAG (Proposed System v5.2):**<br>• **Tầng 1:** [Router Node `mDeBERTa-v3`](#53-đặc-tả-chi-tiết-tầng-1-router-node--modality-context-gating) được huấn luyện qua Joint Multi-task Loss.<br>• **Tầng 2:** `Vintern-3B-beta` huấn luyện qua [Deterministic SFT](#61-pha-1-adaptive-sft-qua-quy-trình-tuần-tự-hóa-tất-định-deterministic-serialization) $\to$ [Hierarchical LR GRPO](#62-pha-2-single-turn-grpo-với-fp32-accumulation--phân-tầng-tốc-độ-học) với hàm thưởng [**Gated DT-VR v5.2**](#63-công-thức-toán-học-hàm-thưởng-phân-luồng-gated-dt-vr-v52).<br>• **Mục đích:** Đo hiệu năng tối đa của toàn bộ giải pháp đề xuất. |
 
 ---
 
@@ -267,8 +278,8 @@ ViChartQA là tập dữ liệu đặc thù với toàn văn bài báo và chú 
 
 | Trục Đánh Giá                                    | Cột 1: Kiến Trúc Đơn Khối (Monolithic Baseline)                                                           | Cột 2: Kiến Trúc H-MAG (Two-Stage Modality-Gated Framework)                                                    |
 | :----------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------ |
-| **Hàng 1: Không Tinh Chỉnh (Zero-Shot Baseline)** | **Ô (1b) Monolithic Zero-shot:**• `Qwen2.5-VL-7B` nguyên bản nhận toàn văn bài báo + toàn bộ ảnh.   | **Ô (2b) Modality-Gated Zero-shot:**• Router Node gọt ngữ cảnh $\to$ `Qwen2.5-VL-7B` nhận ngữ cảnh sạch. |
-| **Hàng 2: Có Tinh Chỉnh (Fine-Tuned System)**     | **Ô (3b) Monolithic Fine-tuned:**• `Qwen2.5-VL-7B` + LoRA huấn luyện SFT + Outcome GRPO trên full context. | **Ô (4b) Full H-MAG v5.2:**• Router Node + `Qwen2.5-VL-7B` huấn luyện Deterministic SFT + Gated DT-VR v5.2.   |
+| **Hàng 1: Không Tinh Chỉnh (Zero-Shot Baseline)** | **Ô (1b) Monolithic Zero-shot:**<br>• `Qwen2.5-VL-7B` nguyên bản nhận toàn văn bài báo + toàn bộ ảnh.   | **Ô (2b) Modality-Gated Zero-shot:**<br>• [Router Node](#53-đặc-tả-chi-tiết-tầng-1-router-node--modality-context-gating) gọt ngữ cảnh $\to$ `Qwen2.5-VL-7B` nhận ngữ cảnh sạch. |
+| **Hàng 2: Có Tinh Chỉnh (Fine-Tuned System)**     | **Ô (3b) Monolithic Fine-tuned:**<br>• `Qwen2.5-VL-7B` + LoRA huấn luyện [Direct SFT](#61-pha-1-adaptive-sft-qua-quy-trình-tuần-tự-hóa-tất-định-deterministic-serialization) + Outcome GRPO trên full context. | **Ô (4b) Full H-MAG v5.2:**<br>• Router Node + `Qwen2.5-VL-7B` huấn luyện [Deterministic SFT](#61-pha-1-adaptive-sft-qua-quy-trình-tuần-tự-hóa-tất-định-deterministic-serialization) + [Gated DT-VR v5.2](#63-công-thức-toán-học-hàm-thưởng-phân-luồng-gated-dt-vr-v52).   |
 
 ---
 
@@ -500,7 +511,7 @@ $$
 #### 3. Cơ Chế Vận Hành Trực Quan & Bản Chất $\mathrm{std}(R) = 0$:
 - Khi một câu trả lời trong nhóm đạt điểm cao hơn mặt bằng chung, $\hat{A}_i > 0 \implies$ mô hình tăng xác suất sinh chuỗi suy luận đó. Ngược lại, câu trả lời kém hơn bị gán $\hat{A}_i < 0$.
 - Nếu cả 5 rollouts đều có điểm số bằng nhau ($R_1 = \dots = R_5$, ví dụ cùng đúng trọn vẹn hoặc cùng sai cú pháp), thì $R_i - \mathrm{mean}(R) = 0 \implies \hat{A}_i = 0.0$ cho toàn bộ nhóm. Đây là **đặc tính cố ý của GRPO**: khi không có giải pháp nào vượt trội tương đối, chính sách không cập nhật trọng số.
-- **Ý nghĩa sống còn của Pha 1 (SFT Warmup):** SFT đưa tỷ lệ sinh đúng cú pháp XML lên $> 95\%$, đảm bảo khi bước vào Pha 2 GRPO, các rollouts luôn có sự phân hóa tự nhiên về độ chính xác và chất lượng suy luận, triệt tiêu nguy cơ đói gradient.
+- **Vai trò tiên quyết của Pha 1 trong việc Căn chỉnh Phân phối Khởi tạo (Cold-Start Distribution Alignment):** Giai đoạn SFT có chức năng chuyển dịch phân phối sinh chuỗi ban đầu của mô hình nền, đưa xác suất sinh đúng cú pháp XML cấu trúc $P_\theta(y \in \mathcal{Y}_{\mathrm{valid}})$ từ tiệm cận $0\%$ lên $> 95\%$. Điều này đảm bảo khi chuyển giao sang Pha 2 RLVR (GRPO), không gian khám phá không bị sụp đổ (Exploration Collapse) và các rollouts luôn có sự phân hóa tự nhiên về độ chính xác, bảo toàn tín hiệu gradient cho hàm cập nhật chính sách.
 
 #### 4. Minh Họa Thực Tế Bằng Dữ Kiện ViChartQA:
 Xét $G=5$ rollouts cho câu hỏi tính tỷ lệ hấp thụ:
@@ -519,10 +530,14 @@ Xét $G=5$ rollouts cho câu hỏi tính tỷ lệ hấp thụ:
 Hàm thưởng tổng hợp cho rollout thứ $i$:
 
 $$
-R_i = R_{\mathrm{format}} \times \left( R_{\mathrm{task}} + \lambda_{\mathrm{ref}} R_{\mathrm{refusal}} \right) + R_{\mathrm{length}}
+R_i = R_{\mathrm{format}} \times \left( R_{\mathrm{task}} + \lambda_{\mathrm{ref}} R_{\mathrm{refusal}} + R_{\mathrm{length}} \right) + (1 - R_{\mathrm{format}}) \times R_{\mathrm{syntax\_penalty}}
 $$
 
-Nếu vi phạm cú pháp đóng mở thẻ XML $\implies R_{\mathrm{format}} = 0 \implies R_i = 0.0$. Hệ số cân bằng $\lambda_{\mathrm{ref}} = 1.0$.
+Trong đó $R_{\mathrm{format}} \in \{0, 1\}$ đóng vai trò cổng kiểm duyệt hình thức (Format Guard Gate), hệ số cân bằng $\lambda_{\mathrm{ref}} = 1.0$, và hình phạt sai cú pháp cố định $R_{\mathrm{syntax\_penalty}} = -1.0$.
+
+**Quy tắc vận hành cổng kiểm duyệt hình thức:**
+- **Khi sinh đúng toàn vẹn cú pháp thẻ XML ($R_{\mathrm{format}} = 1$):** Mô hình nhận đầy đủ điểm đánh giá chất lượng suy luận: $R_i = R_{\mathrm{task}} + \lambda_{\mathrm{ref}} R_{\mathrm{refusal}} + R_{\mathrm{length}}$.
+- **Khi vi phạm cú pháp đóng mở thẻ ($R_{\mathrm{format}} = 0$):** Toàn bộ điểm nội dung và độ dài bị triệt tiêu, mô hình bị phạt trực tiếp: $R_i = R_{\mathrm{syntax\_penalty}} = -1.0$. Thiết kế này triệt tiêu hoàn toàn bẫy chính sách (Policy Evasion Trap), ngăn chặn việc mô hình cố tình phá vỡ định dạng để né tránh điểm phạt âm khi gặp bài toán khó.
 
 ---
 
@@ -530,7 +545,7 @@ Nếu vi phạm cú pháp đóng mở thẻ XML $\implies R_{\mathrm{format}} = 
 
 ##### 1. Động Lực Thực Tế & Điểm Nghẽn Cần Giải Quyết:
 - Cổng nhân logic $R_{\mathrm{task}} = R_{\mathrm{outcome}} \times [1.0 + \alpha_{\mathrm{process}} R_{\mathrm{process}}]$ đảm bảo rằng nếu đáp án cuối cùng sai ($R_{\mathrm{outcome}} = 0$), toàn bộ điểm quy trình bị triệt tiêu về $0$. Mô hình không thể "ăn gian" điểm số bằng cách nhặt bừa các số đúng vào thẻ `<calc>`.
-- Điểm gãy số học của công thức cũ: Đo sai số tương đối thuần túy $\frac{|y_{\mathrm{ans}} - y^*|}{y^*}$ sẽ gây crash `ZeroDivisionError` khi $y^* = 0$, và làm **đảo dấu thương số khiến reward bùng nổ $> 1.0$** khi $y^* < 0$ (tăng trưởng âm).
+- Điểm nghẽn lý thuyết của phương pháp cơ sở thông thường: Cách tiếp cận truyền thống sử dụng sai số tương đối chuẩn hóa $\frac{|y_{\mathrm{ans}} - y^*|}{|y^*|}$ bộc lộ hai điểm gãy toán học nghiêm trọng: (1) Gây bất ổn định số học hoặc sụp đổ tính toán do chia cho 0 khi nhãn số học triệt tiêu ($y^* = 0$); và (2) Làm đảo chiều độ dốc tối ưu khi xét các chỉ số tài chính có giá trị âm ($y^* < 0$, ví dụ tỷ lệ tăng trưởng âm). Do đó, hệ thống thiết lập cơ chế khoảng cách tuyệt đối có ngưỡng dung sai thích ứng tự động $\delta_{\mathrm{tol}}(y^*)$.
 
 ##### 2. Công Thức Toán Học Chuẩn Xác (Combined Tolerance):
 Hàm thưởng tác vụ:
@@ -646,7 +661,7 @@ Nhãn chuẩn $q_{\mathrm{gt}}$: *"Tỷ lệ hấp thụ nửa đầu năm
 #### 6.3.5. Hàm Thưởng Từ Chối Câu Hỏi Không Thể Trả Lời (4-State Complete Decision Matrix)
 
 ##### 1. Động Lực Thực Tế & Điểm Nghẽn Cần Giải Quyết:
-Có **$5.39\%$ câu hỏi trong ViChartQA là không thể trả lời** ($\mathcal{S}_{\mathrm{unans}}$). Trong các thiết kế cũ, việc phạt nặng khi từ chối nhầm ($-\beta = -3.0$) trong khi đoán mò sai khi vô nghiệm chỉ nhận $0.0$ đã tạo ra **Bẫy né phạt Bayes (Penalty Evasion Policy Trap)**: Mô hình thà bịa đặt đáp án còn hơn là dũng cảm từ chối.
+Có **$5.39\%$ câu hỏi trong ViChartQA là không thể trả lời** ($\mathcal{S}_{\mathrm{unans}}$). Các cơ chế thưởng phạt nhị phân đối xứng thông thường (Binary Penalty Schemes) trong y văn thường áp đặt hình phạt nặng cho lỗi từ chối sai ($-\beta = -3.0$) trong khi chỉ gán điểm $0.0$ cho hành vi đoán mò sai khi câu hỏi vô nghiệm. Sự mất cân bằng này vô tình tạo ra **Bẫy né phạt Bayes (Bayesian Penalty Evasion Trap)**: Giá trị kỳ vọng khi đoán mò cao hơn kỳ vọng khi từ chối, khuyến khích mô hình sinh ảo giác bịa đặt số liệu thay vì chủ động từ chối.
 
 ##### 2. Công Thức Toán Học Chuẩn Xác:
 
@@ -714,7 +729,7 @@ với $L_{\mathrm{soft}} = 512$ tokens, $L_{\mathrm{hard}} = 1.024$ tokens, $\ga
 
 ## 7. THIẾT KẾ THỰC NGHIỆM BÓC TÁCH (ABLATION MATRIX) & THANG ĐO ĐÁNH GIÁ
 
-### 7.1. Bảng Đối Chiếu 7 Chiều Phương Pháp Luận
+### 7.1. Bảng Đối Sánh Đặc Tính Phương Pháp Luận & Kiến Trúc Đối Chuẩn (Qualitative Architectural Taxonomy)
 
 | Tiêu Chí So Sánh               | (1) Direct SFT (Baseline)   | (2) Program-of-Thought (PoT)    | (3) Generative Self-Refine    | (4) DPO / PPO Truyền Thống | (5) Inverse RL            | (6) Monolithic Standard GRPO   | (7)**H-MAG v5.2 (Đề Xuất Mới)**              |
 | :---------------------------------- | :---------------------------- | :-------------------------------- | :------------------------------ | :----------------------------- | :-------------------------- | :------------------------------- | :------------------------------------------------- |
@@ -726,15 +741,21 @@ với $L_{\mathrm{soft}} = 512$ tokens, $L_{\mathrm{hard}} = 1.024$ tokens, $\ga
 | **Rủi ro ảo giác số liệu**   | Cao                         | Cao (GIGO từ đọc ảnh)       | Rất cao                      | Cao                          | Cao                       | Còn tồn tại trên VLM 3B    | **Thấp (AST Sanitizer + Gated DT-VR)**          |
 | **Khả thi trên 1 GPU 24GB**     | **Khả thi**                | Khả thi                        | Nguy cơ tràn VRAM           | Khả thi                     | Nguy cơ quá tải        | Nguy cơ tràn VRAM            | **Khả thi (<16GB VRAM tổng)**                  |
 
-### 7.2. Kế Hoạch Bóc Tách Thành Phần (07 Ablation Experiments)
+### 7.2. Kế Hoạch Bóc Tách Thành Phần (Modular Component Ablation Studies)
 
-1. **Ablation 1 (Vai trò Context Gater):** So sánh Full H-MAG vs. Monolithic Baseline nạp full context trên Vintern-3B.
-2. **Ablation 2 (Kiến trúc Router Node):** So sánh `mDeBERTa-v3-base` (SentencePiece, 512 tokens) vs. `phobert-base-v2` (PyVi word segmentation, 256 tokens).
-3. **Ablation 3 (Cấu trúc chuỗi đầu vào Router):** So sánh Input rút gọn ($q + \text{Title} + \mathcal{S}_{\mathrm{chart}}$) vs. Input ghép cặp tối ưu ($q + \text{Title} + \mathcal{S}_{\mathrm{chart}} + P_{\mathrm{relevant}}$).
-4. **Ablation 4 (Cơ chế chọn `target_chart_id`):** So sánh Supervised InfoNCE Contrastive Head với In-Batch Negatives vs. Unsupervised Cosine Similarity chay.
-5. **Ablation 5 (Hàm thưởng quy trình tổng hòa):** So sánh Gated DT-VR v5.2 vs. Phân nhánh nhị phân cũ (đo lường tỷ lệ Citation Hacking trên nhóm `text_and_chart`).
-6. **Ablation 6 (AST Execution Invariance & Safe Grounding IoU):** So sánh AST Sandbox Safe IoU $\mathcal{O}_{\mathrm{gt}}$ vs. So khớp mỏ neo toàn văn bài báo $\mathcal{N}_{\mathrm{doc}}$.
-7. **Ablation 7 (Ma trận Thưởng Phạt Từ Chối 4 Trạng Thái):** So sánh Ma trận Thưởng Phạt 4 Trạng Thái vs. Công thức phạt nhị phân $-\beta$ cũ (v5.0), đo lường tỷ lệ ảo giác (Hallucination Rate) và độ thu hồi từ chối chọn lọc (Selective Abstention Recall / F1) trên tập $\mathcal{S}_{\mathrm{unans}}$.
+Phép so sánh vĩ mô giữa hệ thống đề xuất (Full H-MAG) và mô hình đơn khối (Monolithic Baseline) đã được định hình độc lập tại **Bảng 1 (Mục 4.4)**. Nhằm bóc tách và định lượng chính xác sự đóng góp của từng thành phần kỹ thuật nội bộ, hệ thống thiết lập 3 cụm khảo nghiệm bóc tách vi mô có kiểm soát (Micro-Level Controlled Ablations):
+
+#### Cụm A: Định Tuyến Ngữ Cảnh & Khai Thác Mỏ Neo (Modality Gating & Anchor Ablations)
+1. **Ablation A1 (Kiến trúc Encoder của Router Node):** Đánh giá hiệu năng phân loại 4 intent và trích xuất embedding giữa `mDeBERTa-v3-base` (SentencePiece tokenization, context 512) và `phobert-base-v2` (PyVi syllable segmentation, context 256).
+2. **Ablation A2 (Cấu trúc chuỗi đầu vào Router & Đóng góp của $P_{\mathrm{relevant}}$):** So sánh chuỗi đầu vào rút gọn ($q + \text{Title} + \mathcal{S}_{\mathrm{chart}}$) với chuỗi ghép cặp đầy đủ ($q + \text{Title} + \mathcal{S}_{\mathrm{chart}} + P_{\mathrm{relevant}}$) nhằm chứng minh giá trị của đoạn văn tác giả bình luận trong việc phân giải mâu thuẫn tiêu đề đa biểu đồ.
+3. **Ablation A3 (Cơ chế định danh biểu đồ mục tiêu `target_chart_id`):** So sánh Supervised InfoNCE Contrastive Head (kết hợp In-Batch Negatives) với Unsupervised Cosine Similarity thông thường trên không gian embedding tĩnh.
+
+#### Cụm B: Kiểm Chứng Toán Học & Hàm Thưởng Quy Trình (Math Verification & Process Reward Ablations)
+4. **Ablation B1 (Hàm thưởng quy trình tổng hòa vs Phân nhánh nhị phân):** So sánh hàm thưởng Gated DT-VR tổng hòa ($R_{\mathrm{process}} = 0.5 R_{\mathrm{math}} + 0.5 R_{\mathrm{sem}}$) với cơ chế phân nhánh nhị phân độc lập, đo lường trực tiếp tỷ lệ gian lận trích dẫn (Citation Hacking Rate) trên nhóm `text_and_chart`.
+5. **Ablation B2 (AST Execution Invariance & Safe Grounding IoU):** So sánh cơ chế bóc tách AST Sandbox Safe IoU $\mathcal{O}_{\mathrm{gt}}$ (loại trừ hằng số cấu trúc) với phương pháp so khớp chuỗi/mỏ neo toàn văn bài báo $\mathcal{N}_{\mathrm{doc}}$ (đo lường tỷ lệ phần thưởng rỗng Vacuous Reward).
+
+#### Cụm C: Cơ Chế Ra Quyết Định & Năng Lực Từ Chối Chọn Lọc (Decision Matrix & Selective Abstention Ablations)
+6. **Ablation C1 (Ma trận Thưởng Phạt 4 Trạng Thái vs Phạt Nhị Phân Đối Xứng):** So sánh Ma trận Quyết định 4 Trạng thái (với Incentive Margin $\Delta R = +2.0$) với công thức phạt nhị phân cố định $-\beta$ truyền thống, đo lường sự thay đổi của tỷ lệ ảo giác (Hallucination Rate) và độ thu hồi từ chối chọn lọc (Selective Abstention Recall / F1) trên tập vô nghiệm $\mathcal{S}_{\mathrm{unans}}$.
 
 ---
 
